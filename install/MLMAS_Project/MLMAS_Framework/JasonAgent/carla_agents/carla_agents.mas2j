@@ -1,0 +1,10 @@
+MAS carla_agents {
+
+	environment: carla_agents.CarlaEnv(gui)
+
+	agents:
+		carla_control;
+
+	aslSourcePath:
+		"src/asl";
+}
