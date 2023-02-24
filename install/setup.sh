@@ -16,13 +16,25 @@ mv weights/ MLMAS_Project/ML_Models/LAV/
 rm -R tmp
 rm LAV_weights.zip
 
-echo "3.Downloading CARLA 0.9.10.1 with the required AdditionalMaps"
+
+# ML_Models/transfuser-2022/team_code_transfuser
+echo "3.Downloading the transfuser model weights"
+wget https://s3.eu-central-1.amazonaws.com/avg-projects/transfuser/models_2022.zip -P .
+unzip models_2022.zip -d .
+mv models_2022/ model_ckpt/
+rm models_2022.zip
+mv model_ckpt/ MLMAS_Project/ML_Models/transfuser-2022/
+
+
+
+
+echo "4.Downloading CARLA 0.9.10.1 with the required AdditionalMaps"
 mkdir CARLA_0.9.10.1
 cd CARLA_0.9.10.1
 wget https://carla-releases.s3.eu-west-3.amazonaws.com/Linux/CARLA_0.9.10.1.tar.gz
 wget https://carla-releases.s3.eu-west-3.amazonaws.com/Linux/AdditionalMaps_0.9.10.1.tar.gz
 
-echo "4.Extracting CARLA and MAP folders"
+echo "5.Extracting CARLA and MAP folders"
 tar -xf CARLA_0.9.10.1.tar.gz
 tar -xf AdditionalMaps_0.9.10.1.tar.gz
 
