@@ -19,7 +19,7 @@ export TM_PORT=8000 # port for traffic manager, required when spawning multiple 
 export DEBUG_CHALLENGE=0
 export REPETITIONS=1 # multiple evaluation runs
 
-export TEAM_AGENT=MLMAS_Framework/LAV/team_code/Orchestrator.py
+export TEAM_AGENT=MLMAS_Framework/team_code/Orchestrator.py
 
 
 
