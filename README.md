@@ -5,10 +5,6 @@
 
 ML-MAS: a Hybrid AI Framework for Self-Driving Vehicles. Shukairi, H. A.; and Cardoso, R. C. In Proceedings of the 22nd International Conference on Autonomous Agents and MultiAgent Systems, of AAMAS '23, 2023.
 
-# Instructions
-
-A step-by-step guide on the installation and running the experiments is available here: https://github.com/alshukairi/MLMAS-Framework-AAMAS23/blob/main/documents/InstructionManual.pdf
-
 ```
 @inproceedings{Cardoso23a,
 author = {Hilal Al Shukairi and Rafael C. Cardoso},
@@ -21,6 +17,9 @@ series = {AAMAS '23}
 }
 ```
 
+# Instructions
+
+A step-by-step guide on the installation and running the experiments is available here: https://github.com/alshukairi/MLMAS-Framework-AAMAS23/blob/main/documents/InstructionManual.pdf
 
 ## Demo Video
 
