@@ -4,7 +4,7 @@
  
 # Citation
 
-ML-MAS: a Hybrid AI Framework for Self-Driving Vehicles. Shukairi, H. A.; and Cardoso, R. C. In Proceedings of the 22nd International Conference on Autonomous Agents and MultiAgent Systems, of AAMAS '23, 2023.
+ML-MAS: a Hybrid AI Framework for Self-Driving Vehicles. Shukairi, H. S.; and Cardoso, R. C. In Proceedings of the 22nd International Conference on Autonomous Agents and MultiAgent Systems, of AAMAS '23, 2023.
 
 ```
 @inproceedings{Cardoso23a,
