@@ -8,7 +8,7 @@ import math
 import os
 import pandas as pd
 import time
-
+from  adModel.accidentDetection import accidentDetection
 
 ml_agent = os.getenv('ML_MODEL')
 result_file_path = (os.getenv('CHECKPOINT_ENDPOINT').replace(".json","") + "_jason_metrics.csv")
@@ -51,6 +51,7 @@ class Orchestrator(AutonomousAgent):
         self.control_repeat = 1
         self.ahead_traffic_light_distance = 0
         self.lidar_df = None
+        self.accidentDetector = None
 
     def sensors(self):
 
@@ -112,6 +113,7 @@ class Orchestrator(AutonomousAgent):
         self.num_frames = 1
         self.ml_model.destroy()
         self._vehicle = None
+        self.accidentDetector = None
 
     def run_step(self, input_data, timestamp):
         if self.ml_model._global_plan is None:
@@ -122,6 +124,19 @@ class Orchestrator(AutonomousAgent):
             print(self._vehicle)
         #==== prepare sensors data to be sent to JASON
         self.num_frames += 1
+
+        if self.accidentDetector is None:
+            self.accidentDetector = accidentDetection(
+                ego=self._vehicle,
+                world=CarlaDataProvider.get_world(),
+                collect_t=3,
+                neighbors=5,
+                target_t=5,
+                output_dir="/home/jamie/MLMAS-Framework-AAMAS23/install/MLMAS_Project/output"
+            )
+
+        len= self.accidentDetector.run()
+        # print(len)
 
         # if self.num_frames < 2100:
         #     return self.ml_model.run_step(input_data, timestamp)
