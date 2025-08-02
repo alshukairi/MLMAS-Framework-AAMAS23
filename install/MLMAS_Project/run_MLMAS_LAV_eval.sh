@@ -10,6 +10,8 @@ export PYTHONPATH=$PYTHONPATH:${CARLA_ROOT}/PythonAPI/carla
 export PYTHONPATH=$PYTHONPATH:$CARLA_ROOT/PythonAPI/carla/dist/carla-0.9.10-py3.7-linux-x86_64.egg
 export PYTHONPATH=$PYTHONPATH:leaderboard
 export PYTHONPATH=$PYTHONPATH:MLMAS_Framework/team_code
+export PYTHONPATH=$PYTHONPATH:MLMAS_Framework/team_code/adModel
+export PYTHONPATH=$PYTHONPATH:MLMAS_Framework/team_code/adModel/models
 export PYTHONPATH=$PYTHONPATH:scenario_runner
 
 export LEADERBOARD_ROOT=leaderboard
