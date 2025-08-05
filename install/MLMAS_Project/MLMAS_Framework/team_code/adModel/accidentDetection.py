@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
+
 from adModel.models.dataProcessor import dataProcessor
 from adModel.models.TGANTrainer import TGANTrainer
 import itertools
@@ -19,11 +20,13 @@ class accidentDetection:
         self.ego_new_id = None
         self.output_dir = output_dir
         self.collected_data = []
+        self.fixed_neighbors = None
 
         # world = CarlaDataProvider.get_world()
 
     def reset_collected_data(self):
         self.collected_data = []
+        self.fixed_neighbors = None
 
     def get_vehicle_info(self, vehicle, ego_location):
         transform = vehicle.get_transform()
@@ -33,16 +36,14 @@ class accidentDetection:
         bbox = vehicle.bounding_box
         extent = bbox.extent
         dimensions = (extent.x * 2, extent.y * 2, extent.z * 2)
-        v_type = vehicle.type_id  # 获取蓝图ID，如 'vehicle.tesla.model3'
+        v_type = vehicle.type_id  # 获取蓝图ID，如 "vehicle.tesla.model3"
         vehicle_type = vehicle_type_mapping.get(v_type, None)
 
-        # 如果类型无法识别，抛出错误
         if vehicle_type is None:
             raise ValueError(f"Unknown vehicle type_id: {v_type}")
 
-        # 定义类别顺序（用于编码为整数标签）
         type_order = [
-            'car', 'truck', 'van', 'bus', 'motorcycle', 'pedestrian', 'cyclist', 'none'
+            "car", "truck", "van", "bus", "motorcycle", "pedestrian", "cyclist", "none"
         ]
 
         type_to_idx = {label: idx + 1 for idx, label in enumerate(type_order)}
@@ -57,16 +58,16 @@ class accidentDetection:
             "agent_id": vehicle.id,
             "frame_id": round(frame_id, 3),
             "type_encoded": type_encoded,
-            'l': round(dimensions[0], 2),
-            'w': round(dimensions[1], 2),
-            'h': round(dimensions[2], 2),
-            'x' : round(location.x, 2),
-            'y' : round(location.y, 2),
-            'z' : round(location.z, 2),
-            'vx': round(velocity.x, 2),
-            'vy': round(velocity.y, 2),
+            "l": round(dimensions[0], 2),
+            "w": round(dimensions[1], 2),
+            "h": round(dimensions[2], 2),
+            "x" : round(location.x, 2),
+            "y" : round(location.y, 2),
+            "z" : round(location.z, 2),
+            "vx": round(velocity.x, 2),
+            "vy": round(velocity.y, 2),
             "yaw": round(yaw, 2),
-            'rel_dist': round(distance, 2),
+            "rel_dis": round(distance, 2),
 
         }
 
@@ -76,33 +77,36 @@ class accidentDetection:
 
         all_vehicles = self.world.get_actors().filter("vehicle.*")
 
-        if len(all_vehicles) < self.neighbor_count:
-            num_neighbors = all_vehicles / 2
-        elif len(all_vehicles) >= self.neighbor_count:
-            num_neighbors = self.neighbor_count
-        else :
-            raise ValueError("Number of vehicles exceeds number of neighbors")
-        vehicle_infos = []
+        # 第一次采集时锁定固定邻居
+        if self.fixed_neighbors is None:
+            vehicle_infos = []
+            for v in all_vehicles:
+                if v.id != self.ego.id:
+                    info = self.get_vehicle_info(v, ego_location)
+                    vehicle_infos.append(info)
+
+            # 按距离排序
+            vehicle_infos.sort(key=lambda x: x["rel_dis"])
+
+            # 获取前 N 个邻居的 vehicle_id，初始化 global_id 为 -1（后续填充）
+            self.fixed_neighbors = {
+                info["agent_id"]: -1 for info in vehicle_infos[:self.neighbor_count]
+            }
+
+        # 收集固定邻居的数据
+        neighbor_infos = []
 
         for v in all_vehicles:
-            if v.id != self.ego.id:
+            if v.id in self.fixed_neighbors:
                 info = self.get_vehicle_info(v, ego_location)
-                vehicle_infos.append(info)
+                neighbor_infos.append(info)
 
-        # 按与ego的距离排序（近 → 远）
-        vehicle_infos.sort(key=lambda x: x["rel_dist"])
-
-        # 正样本：最近的 N 个邻居
-        pos_neighbors = vehicle_infos[:num_neighbors]
-
-        frame_data = [ego_info] + pos_neighbors
-
+        # 保存当前帧数据
+        frame_data = [ego_info] + neighbor_infos
         self.collected_data.append(frame_data)
 
-
-
     def prepare_dataset(self, collected_data):
-        # 展平 collected_data: List[List[dict]] → List[dict]
+
         flat_data = [agent for frame in collected_data for agent in frame]
         df = pd.DataFrame(flat_data)
         df = df[df["scenario_id"] == self.scenario_id]
@@ -115,11 +119,10 @@ class accidentDetection:
 
         for vid in df["agent_id"].unique():
             vehicle_data = df[df["agent_id"] == vid].sort_values("frame_id")
-
+            # print(f"{vehicle_data['frame_id'].nunique()} >= {self.target_frames}")
             if vehicle_data["frame_id"].nunique() >= self.target_frames:
                 last_row = vehicle_data.iloc[-1]
                 last_frame = last_row["frame_id"]
-
 
                 for i in range(1, duration + 1 ):
                     new_row = {col: last_row[col] for col in base_cols}
@@ -148,7 +151,7 @@ class accidentDetection:
             "w", "h", "l", "type_encoded",
         ]]
 
-        # 设置主车 global_id（可用于 edge 构建）
+
         ego_row = node_features[node_features["agent_id"] == self.ego.id]
         if not ego_row.empty:
             self.ego_new_id = int(ego_row.iloc[0]["global_id"])
@@ -158,7 +161,7 @@ class accidentDetection:
         return node_features
 
 
-    def create_edge_features(self, or_data_df,node_features_df):
+    def create_edge_features(self, or_data_df,node_features_df, scenario_dir):
         edge_rows = []
         data_df = or_data_df.merge(
             node_features_df[["agent_id", "global_id"]],
@@ -169,7 +172,7 @@ class accidentDetection:
 
             # 获取节点 id 和它们的相对距离（或其他边特征源）
             node_ids = frame_nodes["global_id"].tolist()
-            rel_dists = dict(zip(frame_nodes["global_id"], frame_nodes["rel_dist"]))
+            rel_dists = dict(zip(frame_nodes["global_id"], frame_nodes["rel_dis"]))
             node_info = frame_nodes.set_index("global_id")[["vx", "vy", "yaw"]].to_dict("index")
 
             # 有序配对（不含自环）
@@ -179,11 +182,11 @@ class accidentDetection:
                     "src": src,
                     "dst": dst,
                     "frame_id": frame_id,
-                    "rel_dist": abs(rel_dists[src] - rel_dists[dst]),
+                    "rel_dis": abs(rel_dists[src] - rel_dists[dst]),
                     "vx": src_info["vx"],
                     "vy": src_info["vy"],
                     "yaw": src_info["yaw"],
-                    'ego':  1 if src == self.ego_new_id else 0,
+                    "ego":  1 if src == self.ego_new_id else 0,
 
                 })
 
@@ -194,38 +197,53 @@ class accidentDetection:
 
         # 按 (src, dst) 分组，各自计算 time
         for (src, dst), group in edge_df.groupby(["src", "dst"]):
-            first_frame = group["frame_id"].min()
-            indices = group.index
-            edge_df.loc[indices, "time"] = ((group["frame_id"] - first_frame) // self.fps) + 1
+            global_first_frame = edge_df["frame_id"].min()
+            edge_df["time"] = ((edge_df["frame_id"] - global_first_frame) // self.fps)
 
         # 平均每条边每段时间的特征
-        mean_cols = ["rel_dist", "vx", "vy", "yaw"]
+        mean_cols = ["rel_dis", "vx", "vy", "yaw"]
         avg_df = (
             edge_df.groupby(["time", "src", "dst", "ego"], as_index=False)[mean_cols].mean()
         )
-
+        edge_df.to_csv(f"{scenario_dir}/error.csv", index=False)
+        avg_df.to_csv(f"{scenario_dir}/av_error.csv", index=False)
+        if avg_df["time"].max() < 10:
+            print(f"Error : {scenario_dir}")
+            edge_df.to_csv(f"{scenario_dir}/error.csv", index=False)
+            avg_df.to_csv(f"{scenario_dir}/av_error.csv", index=False)
+            raise ValueError("this is wrong")
         return avg_df
 
     def create_all_edges(self,edge_df):
         return edge_df[["src", "dst"]].drop_duplicates().reset_index(drop=True)
 
     def run(self):
-
         self.collect_one_frame()
-        if len(self.collected_data) < self.target_frames:
-            return len(self.collected_data)
-        print(self.world.get_snapshot().frame)
-        print(len(self.collected_data), self.target_frames)
-        data_df = self.prepare_dataset(self.collected_data)
 
-        node_feature_df = self.create_node_features(data_df)
-        edge_features_df = self.create_edge_features(data_df, node_feature_df)
-        all_edges_df = self.create_all_edges(edge_features_df)
+        # 检查 frame_id 的跨度是否达到目标帧数
+        if len(self.collected_data) < 2:
+            return 0
+
+        ego_frame_ids = [frame[0]["frame_id"] for frame in self.collected_data]
+        frame_span = ego_frame_ids[-1] - ego_frame_ids[0]
+
+        if frame_span < self.target_frames:
+            return frame_span
+
+        # print(f"✅ 收集完成，共持续 {frame_span} 帧 = {frame_span / self.fps:.2f} 秒")
+
+        data_df = self.prepare_dataset(self.collected_data)
 
         scenario_dir = os.path.join(self.output_dir, f"scenearo_{self.scenario_id}")
         os.makedirs(scenario_dir, exist_ok=True)
+        data_df.to_csv(f"{scenario_dir}/data_df.csv", index=False)
+        node_feature_df = self.create_node_features(data_df)
+        edge_features_df = self.create_edge_features(data_df, node_feature_df, scenario_dir)
+        all_edges_df = self.create_all_edges(edge_features_df)
 
-        node_feature_df.to_csv(f"{scenario_dir}/node_feature.csv", index=False)
+
+
+        node_feature_df.to_csv(f"{scenario_dir}/node_features.csv", index=False)
         edge_features_df.to_csv(f"{scenario_dir}/edge_features.csv", index=False)
         all_edges_df.to_csv(f"{scenario_dir}/all_edges.csv", index=False)
 
@@ -236,7 +254,7 @@ class accidentDetection:
         splitDataset = dataProcessor(root_dir=scenario_dir, output_dir=scenario_dir, mask_node_num=self.neighbor_count)
         splitDataset.run()
 
-        trainer = TGANTrainer(data_dir="./data", output_dir="./output")
+        trainer = TGANTrainer(data_dir=scenario_dir, output_dir=f"{scenario_dir}/results",batch_size = 64)
         trainer.eval()
 
 

@@ -14,7 +14,6 @@ class dataProcessor:
         self.edge_scaler = None
         self.node_scaler = None
 
-
     def load_data(self):
         self.edges_df = pd.read_csv(os.path.join(self.root_dir, 'all_edges.csv'))
         self.e_feat_df = pd.read_csv(os.path.join(self.root_dir, 'edge_features.csv'))
@@ -34,11 +33,12 @@ class dataProcessor:
         # Split nodes
 
         self.valid_edge_feats = self.e_feat_df.sort_values(by='time').copy()
+        unique_times = np.sort(self.valid_edge_feats['time'].unique())
+        ts_cutoffs = np.quantile(unique_times, [0.5, 0.6])
 
-        ts_cutoffs = np.quantile(self.valid_edge_feats['time'], [0.7, 0.9])
+        # print('ts_cutoffs:', ts_cutoffs)
         self.train_df_raw = self.valid_edge_feats[self.valid_edge_feats['time'] <= ts_cutoffs[0]]
         self.val_df_raw = self.valid_edge_feats[self.valid_edge_feats['time'] > ts_cutoffs[0]]
-
 
     def build_edge_event_table_from_df(self, df_raw, start_idx, type):
         rows = []
@@ -55,7 +55,7 @@ class dataProcessor:
                 'u': row['src'],
                 'i': row['dst'],
                 'ts': row['time'],
-                'label': row['label'],
+                'ego': row['ego'],
                 'idx': feature_idx
             })
             feature_idx += 1
@@ -77,7 +77,7 @@ class dataProcessor:
         ])
 
         n_feat_df_sorted = self.n_feat_df.sort_values(by='global_id')
-        self.n_feat_matrix = n_feat_df_sorted.drop(columns=['global_id', 'agent_id']).to_numpy()
+        self.n_feat_matrix = n_feat_df_sorted.drop(columns=['global_id', 'agent_id','scenario_id']).to_numpy()
         self.n_feat_matrix = np.vstack([np.zeros((1, self.n_feat_matrix.shape[1])), self.n_feat_matrix])
 
     def save_all(self):

@@ -129,9 +129,9 @@ class Orchestrator(AutonomousAgent):
             self.accidentDetector = accidentDetection(
                 ego=self._vehicle,
                 world=CarlaDataProvider.get_world(),
-                collect_t=3,
-                neighbors=5,
-                target_t=5,
+                collect_t=7,
+                neighbors=2,
+                target_t=10,
                 output_dir="/home/jamie/MLMAS-Framework-AAMAS23/install/MLMAS_Project/output"
             )
 

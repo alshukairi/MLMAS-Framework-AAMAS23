@@ -4,7 +4,7 @@ import numpy as np
 import torch
 
 import torch.nn as nn
-import torch.nn.functional as F
+
 
 class MergeLayer(torch.nn.Module):
     def __init__(self, dim1, dim2, dim3, dim4):
@@ -377,19 +377,25 @@ class AttnModel(torch.nn.Module):
 
 
 class TGAN(torch.nn.Module):
-    def __init__(self, ngh_finder, n_feat, e_feat,
+    def __init__(self, ngh_finder, n_feat, e_feat, dev,
                  attn_mode='prod', use_time='time', agg_method='attn', node_dim=None, time_dim=None,
-                 num_layers=3, n_head=4, null_idx=0, num_heads=1, drop_out=0.1, seq_len=None):
+                 num_layers=3, n_head=4, null_idx=0, num_heads=1, drop_out=0.1, seq_len=None ):
         super(TGAN, self).__init__()
 
         self.num_layers = num_layers
         self.ngh_finder = ngh_finder
         self.null_idx = null_idx
         self.logger = logging.getLogger(__name__)
-        self.n_feat_th = torch.nn.Parameter(torch.from_numpy(n_feat.astype(np.float32)))
-        self.e_feat_th = torch.nn.Parameter(torch.from_numpy(e_feat.astype(np.float32)))
-        self.edge_raw_embed = torch.nn.Embedding.from_pretrained(self.e_feat_th, padding_idx=0, freeze=True)
-        self.node_raw_embed = torch.nn.Embedding.from_pretrained(self.n_feat_th, padding_idx=0, freeze=True)
+        # self.n_feat_th = torch.nn.Parameter(torch.from_numpy(n_feat.astype(np.float32)))
+        # self.e_feat_th = torch.nn.Parameter(torch.from_numpy(e_feat.astype(np.float32)))
+        # self.edge_raw_embed = torch.nn.Embedding.from_pretrained(self.e_feat_th, padding_idx=0, freeze=True)
+        # self.node_raw_embed = torch.nn.Embedding.from_pretrained(self.n_feat_th, padding_idx=0, freeze=True)
+        # 保存原始特征矩阵为 buffer，不优化
+        # self.register_buffer("n_feat_th", torch.from_numpy(n_feat.astype(np.float32)))
+        # self.register_buffer("e_feat_th", torch.from_numpy(e_feat.astype(np.float32)))
+
+        self.n_feat_th = torch.from_numpy(n_feat.astype(np.float32)).to(dev)
+        self.e_feat_th = torch.from_numpy(e_feat.astype(np.float32)).to(dev)
 
         self.feat_dim = self.n_feat_th.shape[1]
 
@@ -397,6 +403,18 @@ class TGAN(torch.nn.Module):
         self.e_feat_dim = self.feat_dim
         self.model_dim = self.feat_dim
 
+        # 建立 MLP encoder（可训练）
+        self.node_encoder = nn.Sequential(
+            nn.Linear(n_feat.shape[1], self.model_dim),
+            nn.ReLU(),
+            nn.Linear(self.model_dim, self.model_dim)
+        )
+
+        self.edge_encoder = nn.Sequential(
+            nn.Linear(e_feat.shape[1], self.model_dim),
+            nn.ReLU(),
+            nn.Linear(self.model_dim, self.model_dim)
+        )
         self.use_time = use_time
         self.merge_layer = MergeLayer(self.feat_dim, self.feat_dim, self.feat_dim, self.feat_dim)
 
@@ -467,7 +485,9 @@ class TGAN(torch.nn.Module):
         cut_time_l_th = torch.unsqueeze(cut_time_l_th, dim=1)
         # query node always has the start time -> time span == 0
         src_node_t_embed = self.time_encoder(torch.zeros_like(cut_time_l_th))
-        src_node_feat = self.node_raw_embed(src_node_batch_th)
+        # src_node_feat = self.node_raw_embed(src_node_batch_th)
+        src_node_feat_raw = self.n_feat_th[src_node_batch_th]
+        src_node_feat = self.node_encoder(src_node_feat_raw)
 
         if curr_layers == 0:
             return src_node_feat
@@ -498,8 +518,9 @@ class TGAN(torch.nn.Module):
 
             # get edge time features and node features
             src_ngh_t_embed = self.time_encoder(src_ngh_t_batch_th)
-            src_ngn_edge_feat = self.edge_raw_embed(src_ngh_eidx_batch)
-
+            # src_ngn_edge_feat = self.edge_raw_embed(src_ngh_eidx_batch)
+            src_ngh_feat_raw = self.e_feat_th[src_ngh_eidx_batch]
+            src_ngn_edge_feat = self.edge_encoder(src_ngh_feat_raw)
             # attention aggregation
             mask = src_ngh_node_batch_th == 0
             attn_m = self.attn_model_list[curr_layers - 1]

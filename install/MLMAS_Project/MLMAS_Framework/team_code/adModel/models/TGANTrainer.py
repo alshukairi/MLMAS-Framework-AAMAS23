@@ -5,16 +5,13 @@ import pandas as pd
 import torch
 from adModel.models.neighborFinder import neighborFinder
 from adModel.models.tgan import TGAN
+from leaderboard.leaderboard_evaluator import LeaderboardEvaluator
 
 class TGANTrainer:
-    def __init__(self,
-                 data_dir,
-                 output_dir,
-                 batch_size=64):
+    def __init__(self, data_dir, output_dir, batch_size):
         self.data_dir = data_dir
         self.output_dir = output_dir
         self.batch_size = batch_size
-
 
         self.device = self._get_device()
         self._prepare_dirs()
@@ -23,25 +20,23 @@ class TGANTrainer:
 
     def _get_device(self):
         if torch.cuda.is_available():
-            print("✅ Using GPU")
+            # print("Using GPU")
             return torch.device("cuda")
         elif torch.backends.mps.is_available():
-            print("✅ Using MPS")
+            # print("Using MPS")
             return torch.device("mps")
         else:
-            print("✅ Using CPU")
+            # print("Using CPU")
             return torch.device("cpu")
 
     def _prepare_dirs(self):
-        self.log_dir = os.path.join(self.output_dir, "saved_log")
-        self.ckpt_dir = os.path.join(self.output_dir, "saved_checkpoints")
-        self.model_dir = os.path.join(self.output_dir, "saved_models")
-        for d in [self.output_dir, self.log_dir, self.ckpt_dir, self.model_dir]:
-            os.makedirs(d, exist_ok=True)
+
+        os.makedirs(self.output_dir, exist_ok=True)
 
     def _load_data(self):
         self.n_feat = np.load(os.path.join(self.data_dir, "n_feat.npy"))
         self.e_feat = np.load(os.path.join(self.data_dir, "e_feat.npy"))
+
 
         val_df = pd.read_csv(os.path.join(self.data_dir, "ml_val.csv"))
         self.finder_df = pd.read_csv(os.path.join(self.data_dir, "finder_df.csv"))
@@ -51,7 +46,7 @@ class TGANTrainer:
         self.val_src = pos_val_df.u.values
         self.val_dst = pos_val_df.i.values
         self.val_ts = pos_val_df.ts.values
-        # self.val_idx = pos_val_df.idx.values
+
 
 
     def _init_model(self):
@@ -65,14 +60,15 @@ class TGANTrainer:
             num_layers=2,
             agg_method='attn',
             use_time='time',
+            dev = self.device
         ).to(self.device)
 
-        weight_path = "./weights/tgan_final.pth"
+        weight_path = "MLMAS_Framework/team_code/accidentDetection/weights/tgan_final.pth"
         if not os.path.exists(weight_path):
             raise FileNotFoundError(f"Missing model weights at {weight_path}")
-        state_dict = torch.load(weight_path, map_location=self.device)
 
-        self.tgan.load_state_dict(state_dict)
+        state_dict = torch.load(weight_path, map_location=self.device)
+        self.tgan.load_state_dict(state_dict,strict=False)
 
 
         self.optimizer = torch.optim.Adam(self.tgan.parameters(), lr=0.001)
@@ -81,44 +77,56 @@ class TGANTrainer:
     def eval(self):
 
         self.tgan.ngh_finder = self.full_ngh_finder
+        # print(f"val_src: {self.val_src}")
+        # print(f"val_dst: {self.val_dst}")
+        # print(f"val_ts: {self.val_ts}")
 
-        acc, ap, f1, auc = self.top_k(
-            self.tgan,
-            self.val_src,
-            self.val_dst,
-            self.val_ts,
-            self.batch_size,
-            num_neighbors=20,
-            top_k = 3
+        df = self.predict_all_dst_for_each_src(self.tgan,top_k=5)
+
+
+    def predict_all_dst_for_each_src(self,tgan, top_k=3, num_neighbors=20):
+        tgan.eval()
+
+        all_node_ids = np.unique(
+            np.concatenate([self.finder_df["u"].values, self.finder_df["i"].values])
         )
 
-    def top_k(self, tgan, src, dst, ts, batch_size, num_neighbors, top_k):
-        all_scores = []
-        all_dst = []
+        results = []
 
         with torch.no_grad():
-            tgan.eval()
-            num_test_instance = len(src)
-            num_test_batch = math.ceil(num_test_instance / batch_size)
+            for src, ts in zip(self.val_src, self.val_ts):
+                dst_candidates = [n for n in all_node_ids if n != src]
+                dst_array = np.array(dst_candidates)
+                src_array = np.array([src] * len(dst_array))
+                ts_array = np.array([ts] * len(dst_array))
 
-            for k in range(num_test_batch):
-                s_idx = k * batch_size
-                e_idx = min(num_test_instance, s_idx + batch_size)
-                src_cut = src[s_idx:e_idx]
-                dst_cut = dst[s_idx:e_idx]
-                ts_cut = ts[s_idx:e_idx]
+                logits = tgan.forward(src_array, dst_array, ts_array, num_neighbors)
+                logits_np = logits.cpu().numpy().flatten()
+                scores_np = torch.sigmoid(logits).cpu().numpy().flatten()
 
-                logits = tgan.forward(src_cut, dst_cut, ts_cut, num_neighbors)
-                scores = logits.sigmoid().cpu().numpy().flatten()
+                # 取 top-k dst
+                top_k_indices = np.argsort(-scores_np)
 
-                all_scores.extend(scores)
-                all_dst.extend(dst_cut)
+                for i in top_k_indices:
+                    results.append({
+                        "src": int(src_array[i]),
+                        "dst": int(dst_array[i]),
+                        "score": float(scores_np[i]),
+                        "logits": float(logits_np[i]),
+                        "ts": int(ts),
+                    })
+                max_inx = top_k_indices[0]
+                max_score = float(scores_np[max_inx])
+                if max_score > 0.7:
+                    c_src = int(dst_array[max_inx])
+                    c_dst = int(dst_array[max_inx])
+                    c_ts = int(ts)
+                    print(f"Collision : src: {c_src}, dst: {c_dst}, ts: {c_ts}")
 
-        # 全部拼接后取 top_k
-        top_k_indices = np.argsort(-np.array(all_scores))[:top_k]
-        top_k_dst = [all_dst[i] for i in top_k_indices]
-        top_k_scores = [all_scores[i] for i in top_k_indices]
+        df = pd.DataFrame(results)
+        df.to_csv(os.path.join(self.output_dir, "topk_dst_predictions.csv"), index=False)
+        # print("Top-k prediction results saved to:", self.output_dir)
+        # print(df.head())
 
-        return list(zip(top_k_dst, top_k_scores))
-
+        return df
 
