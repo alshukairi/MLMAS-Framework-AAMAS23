@@ -5,7 +5,7 @@ import pandas as pd
 import torch
 from adModel.models.neighborFinder import neighborFinder
 from adModel.models.tgan import TGAN
-from leaderboard.leaderboard_evaluator import LeaderboardEvaluator
+
 
 class TGANTrainer:
     def __init__(self, data_dir, output_dir, batch_size):
@@ -63,7 +63,7 @@ class TGANTrainer:
             dev = self.device
         ).to(self.device)
 
-        weight_path = "MLMAS_Framework/team_code/accidentDetection/weights/tgan_final.pth"
+        weight_path = "MLMAS_Framework/team_code/adModel/weights/tgan_final.pth"
         if not os.path.exists(weight_path):
             raise FileNotFoundError(f"Missing model weights at {weight_path}")
 
@@ -77,14 +77,11 @@ class TGANTrainer:
     def eval(self):
 
         self.tgan.ngh_finder = self.full_ngh_finder
-        # print(f"val_src: {self.val_src}")
-        # print(f"val_dst: {self.val_dst}")
-        # print(f"val_ts: {self.val_ts}")
 
-        df = self.predict_all_dst_for_each_src(self.tgan,top_k=5)
+        df = self.predict_all_dst_for_each_src(self.tgan)
+        return df
 
-
-    def predict_all_dst_for_each_src(self,tgan, top_k=3, num_neighbors=20):
+    def predict_all_dst_for_each_src(self, tgan, num_neighbors=20):
         tgan.eval()
 
         all_node_ids = np.unique(
@@ -106,7 +103,7 @@ class TGANTrainer:
 
                 # 取 top-k dst
                 top_k_indices = np.argsort(-scores_np)
-
+                # collision_criterion = CollisionTest(self.ego_vehicles[0], terminate_on_failure=False)
                 for i in top_k_indices:
                     results.append({
                         "src": int(src_array[i]),
@@ -115,18 +112,9 @@ class TGANTrainer:
                         "logits": float(logits_np[i]),
                         "ts": int(ts),
                     })
-                max_inx = top_k_indices[0]
-                max_score = float(scores_np[max_inx])
-                if max_score > 0.7:
-                    c_src = int(dst_array[max_inx])
-                    c_dst = int(dst_array[max_inx])
-                    c_ts = int(ts)
-                    print(f"Collision : src: {c_src}, dst: {c_dst}, ts: {c_ts}")
 
         df = pd.DataFrame(results)
-        df.to_csv(os.path.join(self.output_dir, "topk_dst_predictions.csv"), index=False)
-        # print("Top-k prediction results saved to:", self.output_dir)
-        # print(df.head())
+
 
         return df
 
