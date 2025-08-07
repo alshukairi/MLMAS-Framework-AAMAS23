@@ -360,7 +360,8 @@ class AttnModel(torch.nn.Module):
         """
 
         src_ext = torch.unsqueeze(src, dim=1)  # src [B, 1, D]
-        src_e_ph = torch.zeros_like(src_ext)
+        # src_e_ph = torch.zeros_like(src_ext)
+        src_e_ph = torch.mean(seq_e, dim=1, keepdim=True)  # [B, 1, De]
         q = torch.cat([src_ext, src_e_ph, src_t], dim=2)  # [B, 1, D + De + Dt] -> [B, 1, D]
         k = torch.cat([seq, seq_e, seq_t], dim=2)  # [B, 1, D + De + Dt] -> [B, 1, D]
 

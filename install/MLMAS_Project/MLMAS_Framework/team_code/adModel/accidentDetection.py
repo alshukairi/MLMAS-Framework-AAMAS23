@@ -9,7 +9,7 @@ from vehicle_types import vehicle_type_mapping
 
 
 class accidentDetection:
-    def __init__(self, ego, world, collect_t = 8, neighbors=2, target_t=10, output_dir = "/home/jamie/MLMAS-Framework-AAMAS23/install/MLMAS_Project/output"):
+    def __init__(self, ego, world,senaria_name, collect_t = 7, neighbors=2, target_t=10, output_dir = "/home/jamie/MLMAS-Framework-AAMAS23/install/MLMAS_Project/output"):
         self.scenario_id = 0
         self.neighbor_count = neighbors
         self.fps = 20
@@ -24,6 +24,7 @@ class accidentDetection:
         self.collected_data = []
         self.fixed_neighbors = None
         self.time_map = {}
+        self.senaria_name = senaria_name
 
         # world = CarlaDataProvider.get_world()
 
@@ -39,7 +40,7 @@ class accidentDetection:
         bbox = vehicle.bounding_box
         extent = bbox.extent
         dimensions = (extent.x * 2, extent.y * 2, extent.z * 2)
-        v_type = vehicle.type_id  # 获取蓝图ID，如 "vehicle.tesla.model3"
+        v_type = vehicle.type_id
         vehicle_type = vehicle_type_mapping.get(v_type, None)
 
         if vehicle_type is None:
@@ -95,6 +96,9 @@ class accidentDetection:
             self.fixed_neighbors = {
                 info["agent_id"]: -1 for info in vehicle_infos[:self.neighbor_count]
             }
+            self.neg_neighbors = {
+                info["agent_id"]: -1 for info in vehicle_infos[-self.neighbor_count:]
+            }
 
         # 收集固定邻居的数据
         neighbor_infos = []
@@ -102,6 +106,12 @@ class accidentDetection:
         for v in all_vehicles:
             if v.id in self.fixed_neighbors:
                 info = self.get_vehicle_info(v, ego_location)
+                info["postive_sample"] = 1
+                neighbor_infos.append(info)
+
+            if v.id in self.neg_neighbors:
+                info = self.get_vehicle_info(v, ego_location)
+                info["postive_sample"] = 0
                 neighbor_infos.append(info)
 
         # 保存当前帧数据
@@ -123,7 +133,7 @@ class accidentDetection:
         for vid in df["agent_id"].unique():
             vehicle_data = df[df["agent_id"] == vid].sort_values("frame_id")
 
-            if vehicle_data["frame_id"].nunique() >= self.target_frames:
+            if vehicle_data["frame_id"].nunique() > self.target_frames:
                 last_row = vehicle_data.iloc[-1]
                 last_frame = last_row["frame_id"]
 
@@ -143,7 +153,7 @@ class accidentDetection:
         return padded_df
 
     def create_node_features(self, data_df):
-        # 保留唯一 agent 的静态属性（按 agent 分组取第一行）
+
         unique_agents = data_df.drop_duplicates(subset=["agent_id"])
 
         unique_agents = unique_agents.copy()
@@ -182,14 +192,15 @@ class accidentDetection:
             # 有序配对（不含自环）
             for src, dst in itertools.permutations(node_ids, 2):
                 src_info = node_info[src]
+                dst_info = node_info[dst]
                 edge_rows.append({
                     "src": src,
                     "dst": dst,
                     "frame_id": frame_id,
                     "rel_dis": abs(rel_dists[src] - rel_dists[dst]),
-                    "vx": src_info["vx"],
-                    "vy": src_info["vy"],
-                    "yaw": src_info["yaw"],
+                    "vx": src_info["vx"] - dst_info["vx"],
+                    "vy": src_info["vy"]  - dst_info["vy"],
+                    "yaw": src_info["yaw"] - dst_info["yaw"],
                     "ego":  1 if src == self.ego_new_id else 0,
 
                 })
@@ -204,16 +215,18 @@ class accidentDetection:
             local_time = ((group["frame_id"] - first_frame) // self.fps)
             edge_df.loc[group.index, "time"] = local_time
 
-            # 构建该组的 time_map（基于该组数据）
-            time_map = (
-                group.assign(time=local_time)  # 创建局部 DataFrame
-                .groupby("time")["frame_id"]
+            # 更新后的 group 包含 time 列
+            updated_group = edge_df.loc[group.index]
+
+            # 构建 per-time 的 frame info
+            time_group = (
+                updated_group.groupby("time")["frame_id"]
                 .agg(["min", "max"])
                 .rename(columns={"min": "frame_start", "max": "frame_end"})
                 .to_dict(orient="index")
             )
 
-            self.time_map[(src, dst)] = time_map
+            self.time_map[(src, dst)] = time_group
 
         # 平均每条边每段时间的特征
         mean_cols = ["rel_dis", "vx", "vy", "yaw"]
@@ -221,17 +234,22 @@ class accidentDetection:
             edge_df.groupby(["time", "src", "dst", "ego"], as_index=False)[mean_cols].mean()
         )
 
-        if avg_df["time"].max() < self.e_t:
+        time_max_by_pair = avg_df.groupby(["src", "dst"])["time"].max()
+
+
+        if (time_max_by_pair < self.e_t).any():
             print(f"Error : {scenario_dir}")
-            edge_df.to_csv(f"{scenario_dir}/error.csv", index=False)
-            avg_df.to_csv(f"{scenario_dir}/av_error.csv", index=False)
-            raise ValueError("this is wrong")
+            # edge_df.to_csv(f"{scenario_dir}/error.csv", index=False)
+            # avg_df.to_csv(f"{scenario_dir}/av_error.csv", index=False)
+            # raise ValueError("this is wrong")
+            self.reset_collected_data()
         return avg_df
 
     def create_all_edges(self,edge_df):
         return edge_df[["src", "dst"]].drop_duplicates().reset_index(drop=True)
 
     def run(self):
+
         self.collect_one_frame()
 
         # 检查 frame_id 的跨度是否达到目标帧数
@@ -243,10 +261,10 @@ class accidentDetection:
 
 
         if frame_span == self.target_frames_end:
-            scenario_dir = os.path.join(self.output_dir, f"scenearo_{self.scenario_id}")
+            s_dir = os.path.join(self.output_dir, f"{self.senaria_name}_{self.scenario_id}")
             flat_data = [agent for frame in self.collected_data for agent in frame]
             all_df = pd.DataFrame(flat_data)
-            all_df.to_csv(os.path.join(f"{scenario_dir}/results", "original_data.csv"), index=False)
+            all_df.to_csv(os.path.join(f"{s_dir}/results", "original_data.csv"), index=False)
             self.scenario_id += 1
             self.reset_collected_data()
             return frame_span
@@ -256,7 +274,7 @@ class accidentDetection:
 
         data_df = self.prepare_dataset(self.collected_data)
 
-        scenario_dir = os.path.join(self.output_dir, f"scenearo_{self.scenario_id}")
+        scenario_dir = os.path.join(self.output_dir, f"{self.senaria_name}_{self.scenario_id}")
         os.makedirs(scenario_dir, exist_ok=True)
         data_df.to_csv(f"{scenario_dir}/data_df.csv", index=False)
         node_feature_df = self.create_node_features(data_df)
@@ -272,6 +290,7 @@ class accidentDetection:
         splitDataset.run()
 
         trainer = TGANTrainer(data_dir=scenario_dir, output_dir=f"{scenario_dir}/results",batch_size = 64)
+
         df = trainer.eval()
 
         id_map = node_feature_df.set_index("global_id")["agent_id"].to_dict()
@@ -280,13 +299,22 @@ class accidentDetection:
         df["src_agent_id"] = df["src"].map(id_map)
         df["dst_agent_id"] = df["dst"].map(id_map)
 
-        df["frame_start"] = df["ts"].map(lambda t: self.time_map.get(t, {}).get("frame_start", -1))
-        df["frame_end"] = df["ts"].map(lambda t: self.time_map.get(t, {}).get("frame_end", -1))
+        df["frame_start"] = df.apply(
+            lambda row: self.time_map.get((row["src"], row["dst"]), {}).get(row["ts"], {}).get("frame_start", -1),
+            axis=1
+        )
+
+        df["frame_end"] = df.apply(
+            lambda row: self.time_map.get((row["src"], row["dst"]), {}).get(row["ts"], {}).get("frame_end", -1),
+            axis=1
+        )
 
         # 打印最大得分行的信息
         max_score_row = df.loc[df["score"].idxmax()]
-        if max_score_row["score"] > 0.8:
+
+        if max_score_row["score"] > 0.5:
             print(
+                f"{scenario_dir},"
                 f"Collision Max score: {max_score_row['score']}, "
                 f"Src: {max_score_row['src_agent_id']}, "
                 f"Dst: {max_score_row['dst_agent_id']}, "

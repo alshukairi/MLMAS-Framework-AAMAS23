@@ -30,11 +30,9 @@ class dataProcessor:
         node_scaled_features = self.node_scaler.fit_transform(node_numeric)
         self.n_feat_df[['w', 'h', 'l']] = node_scaled_features
 
-        # Split nodes
-
         self.valid_edge_feats = self.e_feat_df.sort_values(by='time').copy()
         unique_times = np.sort(self.valid_edge_feats['time'].unique())
-        ts_cutoffs = np.quantile(unique_times, [0.8, 0.9])
+        ts_cutoffs = np.quantile(unique_times, [0.7, 0.9])
 
         # print('ts_cutoffs:', ts_cutoffs)
         self.train_df_raw = self.valid_edge_feats[self.valid_edge_feats['time'] <= ts_cutoffs[0]]
@@ -47,7 +45,8 @@ class dataProcessor:
         feat = None
         for _, row in df_raw.iterrows():
             if type == 'train':
-                feat = [row['rel_dis'], row['vx'], row['vy'], row['yaw']]
+                #
+                feat = [row['rel_dis'], row['yaw'], row['vx'], row['vy']]
             elif type == 'val':
                 feat = [0, 0, 0, 0]
             features.append(feat)

@@ -2,6 +2,7 @@
 from jason_carla_bridge import JasonCarlaBridge
 from agents.navigation.basic_agent import BasicAgent
 from leaderboard.autoagents.autonomous_agent import AutonomousAgent
+
 from agents.tools.misc import is_within_distance_ahead
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 import math
@@ -53,6 +54,7 @@ class Orchestrator(AutonomousAgent):
         self.lidar_df = None
         self.accidentDetector = None
 
+        self.senaria_name_log = "UnknownScenario"
     def sensors(self):
 
         ## 1. get the required sinsors by the ML models
@@ -129,7 +131,9 @@ class Orchestrator(AutonomousAgent):
             self.accidentDetector = accidentDetection(
                 ego=self._vehicle,
                 world=CarlaDataProvider.get_world(),
+                senaria_name=self.senaria_name_log,
             )
+
 
         len= self.accidentDetector.run()
         # print(len)
