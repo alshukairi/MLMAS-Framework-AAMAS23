@@ -4,8 +4,10 @@ import numpy as np
 import pandas as pd
 import torch
 from adModel.models.neighborFinder import neighborFinder
+from adModel.models.randEdgeSampler import RandEdgeSampler
 from adModel.models.tgan import TGAN
 
+os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
 class TGANTrainer:
     def __init__(self, data_dir, output_dir, batch_size):
@@ -18,15 +20,13 @@ class TGANTrainer:
         self._load_data()
         self._init_model()
 
+
     def _get_device(self):
         if torch.cuda.is_available():
-            # print("Using GPU")
             return torch.device("cuda")
         elif torch.backends.mps.is_available():
-            # print("Using MPS")
             return torch.device("mps")
         else:
-            # print("Using CPU")
             return torch.device("cpu")
 
     def _prepare_dirs(self):
@@ -39,20 +39,20 @@ class TGANTrainer:
 
 
         val_df = pd.read_csv(os.path.join(self.data_dir, "ml_val.csv"))
+
         self.finder_df = pd.read_csv(os.path.join(self.data_dir, "finder_df.csv"))
 
-        pos_val_df = val_df[val_df['ego'] == 1].copy()
-        # Validation subset
-        self.val_src = pos_val_df.u.values
-        self.val_dst = pos_val_df.i.values
-        self.val_ts = pos_val_df.ts.values
+        pos_val_df = val_df[(val_df['ego'] == 1)].copy()
+        self.pos_val_src = pos_val_df.u.values
+        self.pos_val_dst = pos_val_df.i.values
+        self.pos_val_ts = pos_val_df.ts.values
 
 
 
     def _init_model(self):
 
         self.full_ngh_finder = neighborFinder(self.finder_df, ngh_proportion=1)
-
+        print(self.n_feat.shape, self.e_feat.shape)
         self.tgan = TGAN(
             ngh_finder=self.full_ngh_finder,
             n_feat=self.n_feat,
@@ -71,50 +71,53 @@ class TGANTrainer:
         self.tgan.load_state_dict(state_dict,strict=False)
 
 
-        self.optimizer = torch.optim.Adam(self.tgan.parameters(), lr=0.001)
-        self.criterion = torch.nn.BCEWithLogitsLoss()
-
     def eval(self):
-
         self.tgan.ngh_finder = self.full_ngh_finder
 
-        df = self.predict_all_dst_for_each_src(self.tgan)
-        return df
-
-    def predict_all_dst_for_each_src(self, tgan, num_neighbors=20):
-        tgan.eval()
-
-        all_node_ids = np.unique(
-            np.concatenate([self.finder_df["u"].values, self.finder_df["i"].values])
+        df = self.eval_one_epoch(
+            self.tgan,
+            self.pos_val_src, self.pos_val_dst, self.pos_val_ts,
+            batch_size = 32, num_neighbors =20
         )
 
+        return df
+
+    def _stat(self,np_arr, name):
+        arr = np.asarray(np_arr)
+        print(f"[{name}] shape={arr.shape} dtype={arr.dtype} "
+              f"nan={np.isnan(arr).any()} inf={np.isinf(arr).any()}")
+
+    def eval_one_epoch(self, tgan, src, dst, ts, batch_size, num_neighbors):
         results = []
-
         with torch.no_grad():
-            for src, ts in zip(self.val_src, self.val_ts):
-                dst_candidates = [n for n in all_node_ids if n != src]
-                dst_array = np.array(dst_candidates)
-                src_array = np.array([src] * len(dst_array))
-                ts_array = np.array([ts] * len(dst_array))
+            tgan.eval()
 
-                logits = tgan.forward(src_array, dst_array, ts_array, num_neighbors)
-                logits_np = logits.cpu().numpy().flatten()
-                scores_np = torch.sigmoid(logits).cpu().numpy().flatten()
+            num_instance = len(src)
+            num_batch = (num_instance + batch_size - 1) // batch_size
+            for k in range(num_batch):
+                s_idx = k * batch_size
+                e_idx = min(s_idx + batch_size, num_instance)
 
-                # 取 top-k dst
-                top_k_indices = np.argsort(-scores_np)
-                # collision_criterion = CollisionTest(self.ego_vehicles[0], terminate_on_failure=False)
-                for i in top_k_indices:
+                src_l_cut = src[s_idx:e_idx]
+                dst_l_cut = dst[s_idx:e_idx]
+                ts_l_cut = ts[s_idx:e_idx]
+
+                logits = tgan.forward(src_l_cut, dst_l_cut, ts_l_cut, num_neighbors)
+
+                pos_prob = torch.sigmoid(logits).detach().cpu().numpy()
+
+                for i in range(len(pos_prob)):
                     results.append({
-                        "src": int(src_array[i]),
-                        "dst": int(dst_array[i]),
-                        "score": float(scores_np[i]),
-                        "logits": float(logits_np[i]),
-                        "ts": int(ts),
+                        "src": int(src_l_cut[i]),
+                        "dst": int(dst_l_cut[i]),
+                        "score": float(pos_prob[i]),
+                        "logits": float(logits[i].item()),
+                        "ts": int(ts_l_cut[i]),
                     })
 
         df = pd.DataFrame(results)
 
 
         return df
+
 

@@ -245,6 +245,8 @@ class LeaderboardEvaluator(object):
         self.statistics_manager.save_record(current_stats_record, config.index, checkpoint)
         self.statistics_manager.save_entry_status(entry_status, False, checkpoint)
 
+
+
     def _load_and_run_scenario(self, args, config):
         """
         Load and run the scenario given by config.
@@ -266,6 +268,7 @@ class LeaderboardEvaluator(object):
             self._agent_watchdog.start()
             agent_class_name = getattr(self.module_agent, 'get_entry_point')()
             self.agent_instance = getattr(self.module_agent, agent_class_name)(args.agent_config)
+            self.agent_instance.senaria_name_log = config.name
             config.agent = self.agent_instance
 
             # Check and store the sensors
@@ -323,6 +326,8 @@ class LeaderboardEvaluator(object):
                     vehicle.set_light_state(carla.VehicleLightState(self._vehicle_lights))
 
             # Load scenario and run it
+
+
             if args.record:
                 self.client.start_recorder("{}/{}_rep{}.log".format(args.record, config.name, config.repetition_index))
             self.manager.load_scenario(scenario, self.agent_instance, config.repetition_index)

@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 import numpy as np
-import random
+import math
 from sklearn.preprocessing import StandardScaler
 
 class dataProcessor:
@@ -15,7 +15,7 @@ class dataProcessor:
         self.node_scaler = None
 
     def load_data(self):
-        self.edges_df = pd.read_csv(os.path.join(self.root_dir, 'all_edges.csv'))
+        # self.edges_df = pd.read_csv(os.path.join(self.root_dir, 'all_edges.csv'))
         self.e_feat_df = pd.read_csv(os.path.join(self.root_dir, 'edge_features.csv'))
         self.n_feat_df = pd.read_csv(os.path.join(self.root_dir, 'node_features.csv'))
 
@@ -45,8 +45,11 @@ class dataProcessor:
         feat = None
         for _, row in df_raw.iterrows():
             if type == 'train':
-                #
-                feat = [row['rel_dis'], row['yaw'], row['vx'], row['vy']]
+                dyaw_sin = math.sin(row['yaw'])
+                dyaw_cos = math.cos(row['yaw'])
+                speed = math.sqrt(row['vx'] ** 2 + row['vy'] ** 2)
+
+                feat = [row['rel_dis'], speed, dyaw_sin, dyaw_cos]  # row['yaw_w'],
             elif type == 'val':
                 feat = [0, 0, 0, 0]
             features.append(feat)

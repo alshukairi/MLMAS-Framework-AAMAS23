@@ -1,5 +1,7 @@
 import os
 import pandas as pd
+import random
+import math
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 
 from adModel.models.dataProcessor import dataProcessor
@@ -96,9 +98,6 @@ class accidentDetection:
             self.fixed_neighbors = {
                 info["agent_id"]: -1 for info in vehicle_infos[:self.neighbor_count]
             }
-            self.neg_neighbors = {
-                info["agent_id"]: -1 for info in vehicle_infos[-self.neighbor_count:]
-            }
 
         # 收集固定邻居的数据
         neighbor_infos = []
@@ -106,12 +105,6 @@ class accidentDetection:
         for v in all_vehicles:
             if v.id in self.fixed_neighbors:
                 info = self.get_vehicle_info(v, ego_location)
-                info["postive_sample"] = 1
-                neighbor_infos.append(info)
-
-            if v.id in self.neg_neighbors:
-                info = self.get_vehicle_info(v, ego_location)
-                info["postive_sample"] = 0
                 neighbor_infos.append(info)
 
         # 保存当前帧数据
@@ -184,8 +177,8 @@ class accidentDetection:
         for frame_id in sorted(data_df["frame_id"].unique()):
             frame_nodes = data_df[data_df["frame_id"] == frame_id]
 
-            # 获取节点 id 和它们的相对距离（或其他边特征源）
             node_ids = frame_nodes["global_id"].tolist()
+
             rel_dists = dict(zip(frame_nodes["global_id"], frame_nodes["rel_dis"]))
             node_info = frame_nodes.set_index("global_id")[["vx", "vy", "yaw"]].to_dict("index")
 
@@ -193,6 +186,9 @@ class accidentDetection:
             for src, dst in itertools.permutations(node_ids, 2):
                 src_info = node_info[src]
                 dst_info = node_info[dst]
+                r_s_yaw = math.radians(src_info["yaw"])
+                r_d_yaw = math.radians(dst_info["yaw"])
+
                 edge_rows.append({
                     "src": src,
                     "dst": dst,
@@ -200,8 +196,8 @@ class accidentDetection:
                     "rel_dis": abs(rel_dists[src] - rel_dists[dst]),
                     "vx": src_info["vx"] - dst_info["vx"],
                     "vy": src_info["vy"]  - dst_info["vy"],
-                    "yaw": src_info["yaw"] - dst_info["yaw"],
-                    "ego":  1 if src == self.ego_new_id else 0,
+                    "yaw": r_s_yaw - r_d_yaw,
+                    "ego":  1 if src == self.ego_new_id else 0
 
                 })
 
@@ -239,9 +235,6 @@ class accidentDetection:
 
         if (time_max_by_pair < self.e_t).any():
             print(f"Error : {scenario_dir}")
-            # edge_df.to_csv(f"{scenario_dir}/error.csv", index=False)
-            # avg_df.to_csv(f"{scenario_dir}/av_error.csv", index=False)
-            # raise ValueError("this is wrong")
             self.reset_collected_data()
         return avg_df
 
@@ -277,11 +270,11 @@ class accidentDetection:
         scenario_dir = os.path.join(self.output_dir, f"{self.senaria_name}_{self.scenario_id}")
         os.makedirs(scenario_dir, exist_ok=True)
         data_df.to_csv(f"{scenario_dir}/data_df.csv", index=False)
-        node_feature_df = self.create_node_features(data_df)
-        edge_features_df = self.create_edge_features(data_df, node_feature_df, scenario_dir)
+        node_features_df = self.create_node_features(data_df)
+        edge_features_df = self.create_edge_features(data_df, node_features_df, scenario_dir)
         all_edges_df = self.create_all_edges(edge_features_df)
 
-        node_feature_df.to_csv(f"{scenario_dir}/node_features.csv", index=False)
+        node_features_df.to_csv(f"{scenario_dir}/node_features.csv", index=False)
         edge_features_df.to_csv(f"{scenario_dir}/edge_features.csv", index=False)
         all_edges_df.to_csv(f"{scenario_dir}/all_edges.csv", index=False)
 
@@ -293,7 +286,7 @@ class accidentDetection:
 
         df = trainer.eval()
 
-        id_map = node_feature_df.set_index("global_id")["agent_id"].to_dict()
+        id_map = node_features_df.set_index("global_id")["agent_id"].to_dict()
 
         # 添加 src_agent_id 和 dst_agent_id 列
         df["src_agent_id"] = df["src"].map(id_map)
