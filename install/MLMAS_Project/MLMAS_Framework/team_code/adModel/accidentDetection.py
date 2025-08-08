@@ -278,7 +278,6 @@ class accidentDetection:
         edge_features_df.to_csv(f"{scenario_dir}/edge_features.csv", index=False)
         all_edges_df.to_csv(f"{scenario_dir}/all_edges.csv", index=False)
 
-
         splitDataset = dataProcessor(root_dir=scenario_dir, output_dir=scenario_dir, mask_node_num=self.neighbor_count)
         splitDataset.run()
 
@@ -305,7 +304,7 @@ class accidentDetection:
         # 打印最大得分行的信息
         max_score_row = df.loc[df["score"].idxmax()]
 
-        if max_score_row["score"] > 0.5:
+        if max_score_row["score"] > 0.8:
             print(
                 f"{scenario_dir},"
                 f"Collision Max score: {max_score_row['score']}, "
