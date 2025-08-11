@@ -32,11 +32,12 @@ class dataProcessor:
 
         self.valid_edge_feats = self.e_feat_df.sort_values(by='time').copy()
         unique_times = np.sort(self.valid_edge_feats['time'].unique())
-        ts_cutoffs = np.quantile(unique_times, [0.7, 0.9])
+        ts_cutoffs = np.quantile(unique_times, [0.5, 0.7, 0.9])
 
-        # print('ts_cutoffs:', ts_cutoffs)
-        self.train_df_raw = self.valid_edge_feats[self.valid_edge_feats['time'] <= ts_cutoffs[0]]
-        self.val_df_raw = self.valid_edge_feats[self.valid_edge_feats['time'] > ts_cutoffs[0]]
+        self.train_df_raw = self.valid_edge_feats[(self.valid_edge_feats['time'] <= ts_cutoffs[0])]
+        self.val_df_raw = self.valid_edge_feats[
+            (self.valid_edge_feats['time'] == ts_cutoffs[1]) | (self.valid_edge_feats['time'] == ts_cutoffs[2])]
+
 
     def build_edge_event_table_from_df(self, df_raw, start_idx, type):
         rows = []

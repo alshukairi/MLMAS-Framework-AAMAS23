@@ -11,10 +11,10 @@ from vehicle_types import vehicle_type_mapping
 
 
 class accidentDetection:
-    def __init__(self, ego, world,senaria_name, collect_t = 7, neighbors=2, target_t=10, output_dir = "/home/jamie/MLMAS-Framework-AAMAS23/install/MLMAS_Project/output"):
+    def __init__(self, ego, world,senaria_name, collect_t = 20, neighbors=2, target_t=40, output_dir = "/home/jamie/MLMAS-Framework-AAMAS23/install/MLMAS_Project/output"):
         self.scenario_id = 0
         self.neighbor_count = neighbors
-        self.fps = 20
+        self.fps = 2
         self.s_t = collect_t
         self.e_t = target_t
         self.target_frames = collect_t * self.fps
@@ -304,7 +304,7 @@ class accidentDetection:
         # 打印最大得分行的信息
         max_score_row = df.loc[df["score"].idxmax()]
 
-        if max_score_row["score"] > 0.8:
+        if max_score_row["score"] > 0.7:
             print(
                 f"{scenario_dir},"
                 f"Collision Max score: {max_score_row['score']}, "
