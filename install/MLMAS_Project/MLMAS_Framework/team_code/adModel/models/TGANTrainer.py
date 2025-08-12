@@ -51,7 +51,7 @@ class TGANTrainer:
 
     def _init_model(self):
 
-        self.full_ngh_finder = neighborFinder(self.finder_df, self.e_feat, ngh_proportion=1)
+        self.full_ngh_finder = neighborFinder(self.finder_df, ngh_proportion=1)
 
         self.tgan = TGAN(
             ngh_finder=self.full_ngh_finder,

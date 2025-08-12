@@ -205,7 +205,6 @@ class TimeEncode(torch.nn.Module):
 
         # torch.nn.init.xavier_normal_(self.dense.weight)
 
-
     def forward(self, ts, rel_dis_diff=None):
         # ts: [N, L]
         batch_size = ts.size(0)
@@ -217,16 +216,19 @@ class TimeEncode(torch.nn.Module):
 
         harmonic = torch.cos(map_ts)
 
-        # ===== 融合距离差 =====
         if rel_dis_diff is not None:
-            rel_dis_embed = rel_dis_diff.unsqueeze(-1) * self.basis_freq.view(1, 1, -1)
-            # rel_dis_embed = rel_dis_diff.unsqueeze(-1).expand(-1, -1, self.time_dim)
-            merged_time = harmonic + rel_dis_embed
+            # 距离差归一化（防止 batch 波动过大）
+            rel_dis_diff_norm = rel_dis_diff / (rel_dis_diff.abs().max(dim=1, keepdim=True)[0] + 1e-6)  # 按行归一化
 
-        else:
-            merged_time = harmonic
+            # 加速靠近（负值）时放大
+            proximity_weight = torch.exp(-rel_dis_diff_norm)  # [B, N]
 
-        return merged_time
+            # 直接调制每个 Δt 对应的 harmonic
+            merged_time = harmonic * proximity_weight.unsqueeze(-1)  # [B, N, time_dim]
+            return merged_time
+
+        return harmonic
+
 
 class PosEncode(torch.nn.Module):
     def __init__(self, expand_dim, seq_len):
@@ -512,7 +514,7 @@ class TGAN(torch.nn.Module):
                                                curr_layers=curr_layers - 1,
                                                num_neighbors=num_neighbors)
 
-            src_ngh_node_batch, src_ngh_eidx_batch, src_ngh_t_batch, src_ngh_rel_dis_diff = self.ngh_finder.get_temporal_neighbor(
+            src_ngh_node_batch, src_ngh_eidx_batch, src_ngh_t_batch = self.ngh_finder.get_temporal_neighbor(
                 src_idx_l,
                 cut_time_l,
                 num_neighbors=num_neighbors)
@@ -532,7 +534,15 @@ class TGAN(torch.nn.Module):
             src_ngh_feat = src_ngh_node_conv_feat.view(batch_size, num_neighbors, -1)
 
             # get edge time features and node features
-            src_ngh_rel_dis_diff_th = torch.from_numpy(src_ngh_rel_dis_diff).float().to(device)
+            # src_ngh_rel_dis_diff_th = torch.from_numpy(src_ngh_rel_dis_diff).float().to(device)
+
+            center_rel_dis = self.e_feat_th[src_ngh_eidx_batch[:, 0], 0].unsqueeze(1)  # [B, 1]
+            ngh_rel_dis = self.e_feat_th[src_ngh_eidx_batch, 0]  # [B, num_neighbors]
+
+            src_ngh_rel_dis_diff = ngh_rel_dis - center_rel_dis  # Tensor
+            src_ngh_rel_dis_diff_th = src_ngh_rel_dis_diff.float().to(device)
+
+
             src_ngh_t_embed = self.time_encoder(src_ngh_t_batch_th,src_ngh_rel_dis_diff_th)
             # src_ngn_edge_feat = self.edge_raw_embed(src_ngh_eidx_batch)
 

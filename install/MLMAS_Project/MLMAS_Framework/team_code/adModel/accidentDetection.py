@@ -304,7 +304,7 @@ class accidentDetection:
         # 打印最大得分行的信息
         max_score_row = df.loc[df["score"].idxmax()]
 
-        if max_score_row["score"] > 0.7:
+        if max_score_row["score"] > 0.8:
             print(
                 f"{scenario_dir},"
                 f"Collision Max score: {max_score_row['score']}, "
