@@ -32,6 +32,8 @@ class neighborFinder:
             valid = valid[-num_neighbors:]
             pad_len = num_neighbors - len(valid)
 
+            # 改这里：用 src 自己替换邻居 ID
+            # ngh_nodes = [src for _ in valid] + [0] * pad_len
             ngh_nodes = [x[0] for x in valid] + [0] * pad_len
             eidxs = [x[1] for x in valid] + [0] * pad_len
             ts_list = [x[2] for x in valid] + [0] * pad_len

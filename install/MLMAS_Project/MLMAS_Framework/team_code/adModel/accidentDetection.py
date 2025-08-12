@@ -11,10 +11,10 @@ from vehicle_types import vehicle_type_mapping
 
 
 class accidentDetection:
-    def __init__(self, ego, world,senaria_name, collect_t = 20, neighbors=2, target_t=40, output_dir = "/home/jamie/MLMAS-Framework-AAMAS23/install/MLMAS_Project/output"):
+    def __init__(self, ego, world,senaria_name, collect_t = 6, neighbors=2, target_t=12, output_dir = "/home/jamie/MLMAS-Framework-AAMAS23/install/MLMAS_Project/output"):
         self.scenario_id = 0
         self.neighbor_count = neighbors
-        self.fps = 2
+        self.fps = 5
         self.s_t = collect_t
         self.e_t = target_t
         self.target_frames = collect_t * self.fps

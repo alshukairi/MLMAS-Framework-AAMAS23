@@ -36,8 +36,10 @@ class dataProcessor:
 
         self.train_df_raw = self.valid_edge_feats[(self.valid_edge_feats['time'] <= ts_cutoffs[0])]
         self.val_df_raw = self.valid_edge_feats[
-            (self.valid_edge_feats['time'] == ts_cutoffs[1]) | (self.valid_edge_feats['time'] == ts_cutoffs[2])]
+            (self.valid_edge_feats['time'] == int(ts_cutoffs[1])) | (self.valid_edge_feats['time'] == int(ts_cutoffs[2]))]
 
+        # print(ts_cutoffs[0], int(ts_cutoffs[1]), int(ts_cutoffs[2]))
+        # print(len(self.val_df_raw))
 
     def build_edge_event_table_from_df(self, df_raw, start_idx, type):
         rows = []

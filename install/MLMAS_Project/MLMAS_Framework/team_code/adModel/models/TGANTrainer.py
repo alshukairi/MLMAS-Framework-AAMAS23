@@ -77,7 +77,7 @@ class TGANTrainer:
         df = self.eval_one_epoch(
             self.tgan,
             self.pos_val_src, self.pos_val_dst, self.pos_val_ts,
-            batch_size = 32, num_neighbors =20
+            batch_size = 64, num_neighbors =20
         )
 
         return df
