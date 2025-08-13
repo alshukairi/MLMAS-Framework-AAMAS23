@@ -539,7 +539,7 @@ class TGAN(torch.nn.Module):
             center_rel_dis = self.e_feat_th[src_ngh_eidx_batch[:, 0], 0].unsqueeze(1)  # [B, 1]
             ngh_rel_dis = self.e_feat_th[src_ngh_eidx_batch, 0]  # [B, num_neighbors]
 
-            src_ngh_rel_dis_diff = ngh_rel_dis - center_rel_dis  # Tensor
+            src_ngh_rel_dis_diff = center_rel_dis - ngh_rel_dis # Tensor
             src_ngh_rel_dis_diff_th = src_ngh_rel_dis_diff.float().to(device)
 
 
