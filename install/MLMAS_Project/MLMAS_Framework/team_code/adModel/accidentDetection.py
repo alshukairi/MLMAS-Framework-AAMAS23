@@ -300,7 +300,7 @@ class accidentDetection:
 
         data_df = self.prepare_dataset(self.collected_data)
 
-        scenario_dir = os.path.join(self.output_dir, f"{self.senaria_name}_{self.scenario_id}")
+        scenario_dir = os.path.join(self.output_dir, f"{self.senaria_name}/{self.scenario_id}")
         os.makedirs(scenario_dir, exist_ok=True)
         data_df.to_csv(f"{scenario_dir}/data_df.csv", index=False)
         node_features_df = self.create_node_features(data_df)
