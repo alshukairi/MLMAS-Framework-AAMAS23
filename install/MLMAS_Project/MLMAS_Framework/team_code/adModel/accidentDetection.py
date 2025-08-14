@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-import random
+import numpy as np
 import math
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 
@@ -11,10 +11,10 @@ from vehicle_types import vehicle_type_mapping
 
 
 class accidentDetection:
-    def __init__(self, ego, world,senaria_name, collect_t = 6, neighbors=2, target_t=12, output_dir = "/home/jamie/MLMAS-Framework-AAMAS23/install/MLMAS_Project/output"):
+    def __init__(self, ego, world,senaria_name, collect_t = 30, neighbors=2, target_t=60, output_dir = "/home/jamie/MLMAS-Framework-AAMAS23/install/MLMAS_Project/output"):
         self.scenario_id = 0
         self.neighbor_count = neighbors
-        self.fps = 5
+        self.fps = 1
         self.s_t = collect_t
         self.e_t = target_t
         self.target_frames = collect_t * self.fps
@@ -55,25 +55,58 @@ class accidentDetection:
         type_to_idx = {label: idx + 1 for idx, label in enumerate(type_order)}
 
         type_encoded = type_to_idx[vehicle_type]
-
-        distance = ego_location.distance(location)
         frame_id = self.world.get_snapshot().frame
+
+
+
+        dst_x = round(location.x, 6)
+        dst_y = round(location.y, 6)
+        src_x = ego_location.x
+        src_y = ego_location.y
+
+        dx = dst_x - src_x
+        dy = dst_y - src_y
+        distance = ego_location.distance(location)
+        theta = math.atan2(dy, dx)
+
+        s_yaw = self.ego.get_transform().rotation.yaw
+        src_yaw = math.radians(s_yaw)
+        dst_yaw = math.radians(yaw)
+        phi_src = ((theta - src_yaw) + np.pi) % (2 * np.pi) - np.pi
+        phi_dst = ((theta - dst_yaw) + np.pi) % (2 * np.pi) - np.pi
+
+        e_extent = self.ego.bounding_box.extent
+        src_shap =  (e_extent.x * 2, e_extent.y * 2, e_extent.z * 2)
+        l_src = src_shap[0]
+        w_src = src_shap[1]
+        l_dst = round(dimensions[0], 6)
+        w_dst = round(dimensions[1], 6)
+        a_src = l_src / 2.0
+        b_src = w_src / 2.0
+        a_dst = l_dst / 2.0
+        b_dst = w_dst / 2.0
+
+        r_src = a_src * abs(np.cos(phi_src)) + b_src * abs(np.sin(phi_src))
+        r_dst = a_dst * abs(np.cos(phi_dst)) + b_dst * abs(np.sin(phi_dst))
+
+        m_proj = distance - (r_src + r_dst)
 
         return {
             "scenario_id": self.scenario_id,
             "agent_id": vehicle.id,
             "frame_id": round(frame_id, 3),
             "type_encoded": type_encoded,
-            "l": round(dimensions[0], 2),
-            "w": round(dimensions[1], 2),
-            "h": round(dimensions[2], 2),
-            "x" : round(location.x, 2),
-            "y" : round(location.y, 2),
-            "z" : round(location.z, 2),
-            "vx": round(velocity.x, 2),
-            "vy": round(velocity.y, 2),
-            "yaw": round(yaw, 2),
-            "rel_dis": round(distance, 2),
+            "l": l_dst,
+            "w": w_dst,
+            "h": round(dimensions[2], 6),
+            "x" : dst_x,
+            "y" : dst_y,
+            "z" : round(location.z, 6),
+            "vx": round(velocity.x, 6),
+            "vy": round(velocity.y, 6),
+            "yaw": round(dst_yaw, 6),
+            "rel_dis": round(distance, 6),
+            "m_proj": m_proj,
 
         }
 
@@ -180,23 +213,23 @@ class accidentDetection:
             node_ids = frame_nodes["global_id"].tolist()
 
             rel_dists = dict(zip(frame_nodes["global_id"], frame_nodes["rel_dis"]))
+            m_proj_dists = dict(zip(frame_nodes["global_id"], frame_nodes["m_proj"]))
             node_info = frame_nodes.set_index("global_id")[["vx", "vy", "yaw"]].to_dict("index")
 
             # 有序配对（不含自环）
             for src, dst in itertools.permutations(node_ids, 2):
                 src_info = node_info[src]
                 dst_info = node_info[dst]
-                r_s_yaw = math.radians(src_info["yaw"])
-                r_d_yaw = math.radians(dst_info["yaw"])
 
                 edge_rows.append({
                     "src": src,
                     "dst": dst,
                     "frame_id": frame_id,
-                    "rel_dis": abs(rel_dists[src] - rel_dists[dst]),
+                    "rel_dis":  rel_dists[dst],
+                    "m_proj": m_proj_dists[dst],
                     "vx": src_info["vx"] - dst_info["vx"],
                     "vy": src_info["vy"]  - dst_info["vy"],
-                    "yaw": r_s_yaw - r_d_yaw,
+                    "yaw": src_info["yaw"] - dst_info["yaw"],
                     "ego":  1 if src == self.ego_new_id else 0
 
                 })
@@ -225,7 +258,7 @@ class accidentDetection:
             self.time_map[(src, dst)] = time_group
 
         # 平均每条边每段时间的特征
-        mean_cols = ["rel_dis", "vx", "vy", "yaw"]
+        mean_cols = ["rel_dis", "vx", "vy", "yaw","m_proj"]
         avg_df = (
             edge_df.groupby(["time", "src", "dst", "ego"], as_index=False)[mean_cols].mean()
         )

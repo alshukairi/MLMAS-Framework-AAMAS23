@@ -21,9 +21,9 @@ class dataProcessor:
 
     def process(self):
         # Standardize edge features
-        edge_numeric = self.e_feat_df[['rel_dis', 'vx', 'vy', 'yaw']].copy()
+        edge_numeric = self.e_feat_df[['rel_dis', 'vx', 'vy', 'yaw','m_proj']].copy()
         edge_scaled_features = self.edge_scaler.fit_transform(edge_numeric)
-        self.e_feat_df[['rel_dis', 'vx', 'vy', 'yaw']] = edge_scaled_features
+        self.e_feat_df[['rel_dis', 'vx', 'vy', 'yaw','m_proj']] = edge_scaled_features
 
         # Standardize node features
         node_numeric = self.n_feat_df[['w', 'h', 'l']].copy()
@@ -52,7 +52,7 @@ class dataProcessor:
                 dyaw_cos = math.cos(row['yaw'])
                 speed = math.sqrt(row['vx'] ** 2 + row['vy'] ** 2)
 
-                feat = [row['rel_dis'], speed, dyaw_sin, dyaw_cos]  # row['yaw_w'],
+                feat = [row['m_proj'], speed, dyaw_sin, dyaw_cos]  # row['rel_dis'],, row['yaw_w']
             elif type == 'val':
                 feat = [0, 0, 0, 0]
             features.append(feat)
