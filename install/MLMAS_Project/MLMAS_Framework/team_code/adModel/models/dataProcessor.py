@@ -52,7 +52,7 @@ class dataProcessor:
                 dyaw_cos = math.cos(row['yaw'])
                 speed = math.sqrt(row['vx'] ** 2 + row['vy'] ** 2)
 
-                feat = [row['m_proj'], speed, dyaw_sin, dyaw_cos]  # row['rel_dis'],, row['yaw_w']
+                feat = [row['m_proj'], dyaw_sin, dyaw_cos, speed] # row['rel_dis'],, row['yaw_w']
             elif type == 'val':
                 feat = [0, 0, 0, 0]
             features.append(feat)
