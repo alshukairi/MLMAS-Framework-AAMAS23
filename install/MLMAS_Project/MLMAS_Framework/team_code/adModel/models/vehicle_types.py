@@ -58,4 +58,7 @@ vehicle_type_mapping = {
     "vehicle.bh.crossbike": "cyclist",
     "vehicle.diamondback.century": "cyclist",
     "vehicle.gazelle.omafiets": "cyclist",
+
+    # pedestrian
+    "walker.pedestrian": "pedestrian",
 }

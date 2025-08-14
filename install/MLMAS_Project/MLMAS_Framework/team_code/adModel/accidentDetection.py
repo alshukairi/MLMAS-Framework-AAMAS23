@@ -34,39 +34,38 @@ class accidentDetection:
         self.collected_data = []
         self.fixed_neighbors = None
 
-    def get_vehicle_info(self, vehicle, ego_location):
-        transform = vehicle.get_transform()
+    def get_actor_info(self, actor, ego_location):
+        transform = actor.get_transform()
         location = transform.location
         yaw = transform.rotation.yaw
-        velocity = vehicle.get_velocity()
-        bbox = vehicle.bounding_box
+        velocity = actor.get_velocity()
+        bbox = actor.bounding_box
         extent = bbox.extent
         dimensions = (extent.x * 2, extent.y * 2, extent.z * 2)
-        v_type = vehicle.type_id
-        vehicle_type = vehicle_type_mapping.get(v_type, None)
 
-        if vehicle_type is None:
-            raise ValueError(f"Unknown vehicle type_id: {v_type}")
+        # 判断类型
+        a_type = actor.type_id
+        if a_type.startswith("walker.pedestrian"):
+            vehicle_type = vehicle_type_mapping.get("walker.pedestrian", None)
+        else:
+            vehicle_type = vehicle_type_mapping.get(a_type, None)
 
         type_order = [
             "car", "truck", "van", "bus", "motorcycle", "pedestrian", "cyclist", "none"
         ]
-
         type_to_idx = {label: idx + 1 for idx, label in enumerate(type_order)}
-
         type_encoded = type_to_idx[vehicle_type]
+
         frame_id = self.world.get_snapshot().frame
 
-
-
+        # 相对位置和角度
         dst_x = round(location.x, 6)
         dst_y = round(location.y, 6)
         src_x = ego_location.x
         src_y = ego_location.y
-
         dx = dst_x - src_x
         dy = dst_y - src_y
-        distance = ego_location.distance(location)
+        distance = math.sqrt(dx ** 2 + dy ** 2)  # 只算平面距离
         theta = math.atan2(dy, dx)
 
         s_yaw = self.ego.get_transform().rotation.yaw
@@ -75,17 +74,19 @@ class accidentDetection:
         phi_src = ((theta - src_yaw) + np.pi) % (2 * np.pi) - np.pi
         phi_dst = ((theta - dst_yaw) + np.pi) % (2 * np.pi) - np.pi
 
+        # ego 尺寸
         e_extent = self.ego.bounding_box.extent
-        src_shap =  (e_extent.x * 2, e_extent.y * 2, e_extent.z * 2)
-        l_src = src_shap[0]
-        w_src = src_shap[1]
+        src_shape = (e_extent.x * 2, e_extent.y * 2, e_extent.z * 2)
+        l_src = src_shape[0]
+        w_src = src_shape[1]
         l_dst = round(dimensions[0], 6)
         w_dst = round(dimensions[1], 6)
+
+        # 投影半径
         a_src = l_src / 2.0
         b_src = w_src / 2.0
         a_dst = l_dst / 2.0
         b_dst = w_dst / 2.0
-
         r_src = a_src * abs(np.cos(phi_src)) + b_src * abs(np.sin(phi_src))
         r_dst = a_dst * abs(np.cos(phi_dst)) + b_dst * abs(np.sin(phi_dst))
 
@@ -93,35 +94,36 @@ class accidentDetection:
 
         return {
             "scenario_id": self.scenario_id,
-            "agent_id": vehicle.id,
+            "agent_id": actor.id,
             "frame_id": round(frame_id, 3),
             "type_encoded": type_encoded,
             "l": l_dst,
             "w": w_dst,
             "h": round(dimensions[2], 6),
-            "x" : dst_x,
-            "y" : dst_y,
-            "z" : round(location.z, 6),
+            "x": dst_x,
+            "y": dst_y,
+            "z": round(location.z, 6),
             "vx": round(velocity.x, 6),
             "vy": round(velocity.y, 6),
             "yaw": round(dst_yaw, 6),
             "rel_dis": round(distance, 6),
             "m_proj": m_proj,
-
         }
 
     def collect_one_frame(self):
         ego_location = self.ego.get_location()
-        ego_info = self.get_vehicle_info(self.ego, ego_location)
+        ego_info = self.get_actor_info(self.ego, ego_location)
 
-        all_vehicles = self.world.get_actors().filter("vehicle.*")
-
+        # all_vehicles = self.world.get_actors().filter("vehicle.*")
+        vehicles = self.world.get_actors().filter("vehicle.*")
+        walkers = self.world.get_actors().filter("walker.pedestrian.*")
+        all_actors = list(vehicles) + list(walkers)
         # 第一次采集时锁定固定邻居
         if self.fixed_neighbors is None:
             vehicle_infos = []
-            for v in all_vehicles:
+            for v in all_actors:
                 if v.id != self.ego.id:
-                    info = self.get_vehicle_info(v, ego_location)
+                    info = self.get_actor_info(v, ego_location)
                     vehicle_infos.append(info)
 
             # 按距离排序
@@ -135,9 +137,9 @@ class accidentDetection:
         # 收集固定邻居的数据
         neighbor_infos = []
 
-        for v in all_vehicles:
+        for v in all_actors:
             if v.id in self.fixed_neighbors:
-                info = self.get_vehicle_info(v, ego_location)
+                info = self.get_actor_info(v, ego_location)
                 neighbor_infos.append(info)
 
         # 保存当前帧数据
