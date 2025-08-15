@@ -46,7 +46,22 @@ class dataProcessor:
         features = []
         feature_idx = start_idx
         feat = None
-        for _, row in df_raw.iterrows():
+
+        new_df_raw = df_raw.copy()
+        m_proj = new_df_raw['m_proj'].values
+
+        neg_max = abs(m_proj[m_proj < 0].min()) if np.any(m_proj < 0) else 1.0
+        pos_max = abs(m_proj[m_proj >= 0].max()) if np.any(m_proj >= 0) else 1.0
+
+        m_proj_scaled = np.where(m_proj < 0,
+                                 m_proj / neg_max,
+                                 m_proj / pos_max)
+
+        m_proj_scaled = -m_proj_scaled
+
+        new_df_raw['m_proj'] = m_proj_scaled
+
+        for _, row in new_df_raw.iterrows():
             if type == 'train':
                 dyaw_sin = math.sin(row['yaw'])
                 dyaw_cos = math.cos(row['yaw'])

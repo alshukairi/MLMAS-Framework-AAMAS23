@@ -297,7 +297,7 @@ class AttnModel(torch.nn.Module):
     """
 
     def __init__(self, feat_dim, edge_dim, time_dim,
-                 attn_mode='prod', n_head=2, drop_out=0.1):
+                 attn_mode='prod', n_head=2, drop_out=0.1, dev='cpu'):
         """
         args:
           feat_dim: dim for the node features
@@ -316,7 +316,7 @@ class AttnModel(torch.nn.Module):
         # self.edge_fc = torch.nn.Linear(self.edge_in_dim, self.feat_dim, bias=False)
 
         self.merger = MergeLayer(self.model_dim, feat_dim, feat_dim, feat_dim)
-
+        self.dev = dev
         # self.act = torch.nn.ReLU()
 
         assert (self.model_dim % n_head == 0)
@@ -362,6 +362,10 @@ class AttnModel(torch.nn.Module):
         # src_e_ph = torch.zeros_like(src_ext)
 
         src_e_ph = torch.mean(seq_e, dim=1, keepdim=True)  # [B, 1, De]
+
+        # self.q_edge_proj = nn.Linear(seq_e.size(-1), seq_e.size(-1)).to(self.dev)
+        # src_e_ph = self.q_edge_proj(src_e_ph)
+
 
         q = torch.cat([src_ext, src_e_ph, src_t], dim=2)  # [B, 1, D + De + Dt] -> [B, 1, D]
         k = torch.cat([seq, seq_e, seq_t], dim=2)  # [B, 1, D + De + Dt] -> [B, 1, D]
@@ -431,6 +435,7 @@ class TGAN(torch.nn.Module):
                                                                   self.feat_dim,
                                                                   attn_mode=attn_mode,
                                                                   n_head=n_head,
+                                                                  dev = dev,
                                                                   drop_out=drop_out) for _ in range(num_layers)])
         elif agg_method == 'lstm':
             self.logger.info('Aggregation uses LSTM model')
