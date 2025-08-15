@@ -196,16 +196,16 @@ class TimeEncode(torch.nn.Module):
         super(TimeEncode, self).__init__()
         # init_len = np.array([1e8**(i/(time_dim-1)) for i in range(time_dim)])
 
-        self.time_dim = expand_dim
+        time_dim = expand_dim
         self.factor = factor
-        self.basis_freq = torch.nn.Parameter((torch.from_numpy(1 / 10 ** np.linspace(0, 9, self.time_dim))).float())
-        self.phase = torch.nn.Parameter(torch.zeros(self.time_dim).float())
+        self.basis_freq = torch.nn.Parameter((torch.from_numpy(1 / 10 ** np.linspace(0, 9, time_dim))).float())
+        self.phase = torch.nn.Parameter(torch.zeros(time_dim).float())
 
         # self.dense = torch.nn.Linear(time_dim, expand_dim, bias=False)
 
         # torch.nn.init.xavier_normal_(self.dense.weight)
 
-    def forward(self, ts, rel_dis_diff=None):
+    def forward(self, ts):
         # ts: [N, L]
         batch_size = ts.size(0)
         seq_len = ts.size(1)
@@ -216,18 +216,7 @@ class TimeEncode(torch.nn.Module):
 
         harmonic = torch.cos(map_ts)
 
-        if rel_dis_diff is not None:
-            # 距离差归一化（防止 batch 波动过大）
-            rel_dis_diff_norm = rel_dis_diff / (rel_dis_diff.abs().max(dim=1, keepdim=True)[0] + 1e-6)  # 按行归一化
-
-            # 加速靠近（负值）时放大
-            proximity_weight = torch.exp(-rel_dis_diff_norm)  # [B, N]
-
-            # 直接调制每个 Δt 对应的 harmonic
-            merged_time = harmonic * proximity_weight.unsqueeze(-1)  # [B, N, time_dim]
-            return merged_time
-
-        return harmonic
+        return harmonic  # self.dense(harmonic)
 
 
 class PosEncode(torch.nn.Module):
@@ -370,8 +359,10 @@ class AttnModel(torch.nn.Module):
         """
 
         src_ext = torch.unsqueeze(src, dim=1)  # src [B, 1, D]
-        src_e_ph = torch.zeros_like(src_ext)
-        # src_e_ph = torch.mean(seq_e, dim=1, keepdim=True)  # [B, 1, De]
+        # src_e_ph = torch.zeros_like(src_ext)
+
+        src_e_ph = torch.mean(seq_e, dim=1, keepdim=True)  # [B, 1, De]
+
         q = torch.cat([src_ext, src_e_ph, src_t], dim=2)  # [B, 1, D + De + Dt] -> [B, 1, D]
         k = torch.cat([seq, seq_e, seq_t], dim=2)  # [B, 1, D + De + Dt] -> [B, 1, D]
 
@@ -534,16 +525,7 @@ class TGAN(torch.nn.Module):
             src_ngh_feat = src_ngh_node_conv_feat.view(batch_size, num_neighbors, -1)
 
             # get edge time features and node features
-            # src_ngh_rel_dis_diff_th = torch.from_numpy(src_ngh_rel_dis_diff).float().to(device)
-
-            center_rel_dis = self.e_feat_th[src_ngh_eidx_batch[:, 0], 0].unsqueeze(1)  # [B, 1]
-            ngh_rel_dis = self.e_feat_th[src_ngh_eidx_batch, 0]  # [B, num_neighbors]
-
-            src_ngh_rel_dis_diff = center_rel_dis - ngh_rel_dis # Tensor
-            src_ngh_rel_dis_diff_th = src_ngh_rel_dis_diff.float().to(device)
-
-
-            src_ngh_t_embed = self.time_encoder(src_ngh_t_batch_th,src_ngh_rel_dis_diff_th)
+            src_ngh_t_embed = self.time_encoder(src_ngh_t_batch_th)
             # src_ngn_edge_feat = self.edge_raw_embed(src_ngh_eidx_batch)
 
             src_ngn_edge_feat = F.embedding(src_ngh_eidx_batch, self.edge_raw_embed, padding_idx=self.null_idx)

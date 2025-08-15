@@ -304,6 +304,7 @@ class accidentDetection:
 
         scenario_dir = os.path.join(self.output_dir, f"{self.senaria_name}/{self.scenario_id}")
         os.makedirs(scenario_dir, exist_ok=True)
+        os.makedirs(f"{scenario_dir}/results", exist_ok=True)
         data_df.to_csv(f"{scenario_dir}/data_df.csv", index=False)
         node_features_df = self.create_node_features(data_df)
         edge_features_df = self.create_edge_features(data_df, node_features_df, scenario_dir)
@@ -315,6 +316,11 @@ class accidentDetection:
 
         splitDataset = dataProcessor(root_dir=scenario_dir, output_dir=scenario_dir, mask_node_num=self.neighbor_count)
         splitDataset.run()
+
+        if (edge_features_df[["vx", "vy"]].abs().sum().sum() < 0.1):
+            # print(f"{scenario_dir}, velocity is 0 , skip the prediction")
+            return frame_span
+
 
         trainer = TGANTrainer(data_dir=scenario_dir, output_dir=f"{scenario_dir}/results",batch_size = 64)
 
