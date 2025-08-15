@@ -21,9 +21,10 @@ class dataProcessor:
 
     def process(self):
         # Standardize edge features
-        edge_numeric = self.e_feat_df[['rel_dis', 'vx', 'vy', 'yaw','m_proj']].copy()
+        edge_numeric = self.e_feat_df[['rel_dis', 'vx_w', 'vy_w', 'yaw_w', 'm_proj']].copy()
+        edge_numeric['speed'] = np.sqrt(edge_numeric['vx_w'] ** 2 + edge_numeric['vy_w'] ** 2)
         edge_scaled_features = self.edge_scaler.fit_transform(edge_numeric)
-        self.e_feat_df[['rel_dis', 'vx', 'vy', 'yaw','m_proj']] = edge_scaled_features
+        self.e_feat_df[['rel_dis', 'vx_w', 'vy_w', 'yaw_w', 'm_proj', 'speed']] = edge_scaled_features  # 'rel_dis',
 
         # Standardize node features
         node_numeric = self.n_feat_df[['w', 'h', 'l']].copy()
