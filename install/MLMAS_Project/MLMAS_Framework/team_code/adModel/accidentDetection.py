@@ -316,11 +316,11 @@ class accidentDetection:
 
         splitDataset = dataProcessor(root_dir=scenario_dir, output_dir=scenario_dir, mask_node_num=self.neighbor_count)
         splitDataset.run()
-
-        if (edge_features_df[["vx", "vy"]].abs().sum().sum() < 0.1):
-            # print(f"{scenario_dir}, velocity is 0 , skip the prediction")
-            return frame_span
-
+        src_edg_df = edge_features_df[edge_features_df['src'] == 0]
+        for dst, df in src_edg_df.groupby('dst'):
+            if df[["vx", "vy"]].abs().sum().sum() < 0.1:
+                # print(f"{scenario_dir}, velocity is 0 , skip the prediction")
+                return frame_span
 
         trainer = TGANTrainer(data_dir=scenario_dir, output_dir=f"{scenario_dir}/results",batch_size = 64)
 
