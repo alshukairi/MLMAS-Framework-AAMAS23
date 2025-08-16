@@ -47,6 +47,12 @@
 		<-   control(0, 0.0, 0.0, 1.0, false, false, (Sp)). // hard break
 //			.print("===Avoid [front] collision===: ", Sp).
 
+// 15.1 Slow down
++!start(F): traffic_light(_,_,_,_,_,_,0)
+		  & info(F,S) & S > 90 & ml_control(F,_,St,_,_,_)
+		<-   control(6, 0.0, St, 0.4, false, false, 5). // Slow Down
+//			.print("=== Slow down After Traffic Light Box===: ", F).
+
  // 5. Good practice to slow down the speedy car when exiting the
  //    the traffic light box, till the road vision and obstacles
  //     become more clear.
@@ -197,6 +203,8 @@
 		      .print("=== [Pulse to move] ===: ", N). // Go forward
 //===============================
 
+
+
 // 15. send back no action, to allow the ML model control.
 +!start(F): info(F,Sp) & Sp <= 0 & stopCount(N)
 			<- no_action;
@@ -211,3 +219,4 @@
 
 // 15. a belied activated when there are new beliefs updated to be considered.
 +S::startP(F) <- !start(F).
+

@@ -11,6 +11,7 @@ import pandas as pd
 import time
 from  adModel.accidentDetection import accidentDetection
 
+
 ml_agent = os.getenv('ML_MODEL')
 result_file_path = (os.getenv('CHECKPOINT_ENDPOINT').replace(".json","") + "_jason_metrics.csv")
 
@@ -53,7 +54,7 @@ class Orchestrator(AutonomousAgent):
         self.ahead_traffic_light_distance = 0
         self.lidar_df = None
         self.accidentDetector = None
-
+        self.slow = 0
         self.senaria_name_log = "UnknownScenario"
     def sensors(self):
 
@@ -133,9 +134,36 @@ class Orchestrator(AutonomousAgent):
                 world=CarlaDataProvider.get_world(),
                 senaria_name=self.senaria_name_log,
             )
+        accidentMark = self.accidentDetector.run()
 
 
-        len= self.accidentDetector.run()
+        if accidentMark == 1 :
+            # 手动伪造前方障碍检测结果
+            # front_objects_detection = (X, Y, MinX, MinY)
+            # 确保其它检测方向无影响（可选）
+            self.back_objects_detection = -1
+            self.sBack_objects_detection = -1
+            self.SFront_objects_detection = -1
+            self.Left_objects_detection = -1
+            self.right_objects_detection = -1
+
+            self.traffic_light_detection = ("L", "G", 0, 0, 0, 10, 0)  # inBox=0
+            self.main_info = (self.num_frames, 100.0)  # 速度 > 4
+
+            self.ml_control = (self.ml_model.run_step(input_data, timestamp) if self.should_get_ml_control()
+                               else carla.VehicleControl(steer=float(0.0),
+                                                         throttle=float(0.0),
+                                                         brake=float(1.0)))
+
+            cnt = self.send_sensor_data()
+
+            if cnt != -1:
+                return cnt
+            return self.ml_control  # carla.VehicleControl(steer=control.steer, throttle=float(1.0), brake=control.brake)
+
+
+
+
         # print(len)
 
         # if self.num_frames < 2100:

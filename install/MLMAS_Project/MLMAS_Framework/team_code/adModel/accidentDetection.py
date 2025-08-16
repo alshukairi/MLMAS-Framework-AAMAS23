@@ -317,9 +317,10 @@ class accidentDetection:
         splitDataset = dataProcessor(root_dir=scenario_dir, output_dir=scenario_dir, mask_node_num=self.neighbor_count)
         splitDataset.run()
         src_edg_df = edge_features_df[edge_features_df['src'] == 0]
-        for dst, df in src_edg_df.groupby('dst'):
-            if df[["vx", "vy"]].abs().sum().sum() < 0.1:
-                # print(f"{scenario_dir}, velocity is 0 , skip the prediction")
+        for dst, df_group in src_edg_df.groupby('dst'):
+            theo = int(len (df_group) / 6)
+            first_three = df_group[["vx", "vy"]].head(theo)
+            if np.all(abs(first_three.values) < 1e-5):
                 return frame_span
 
         trainer = TGANTrainer(data_dir=scenario_dir, output_dir=f"{scenario_dir}/results",batch_size = 64)
@@ -356,3 +357,10 @@ class accidentDetection:
             )
 
         df.to_csv(os.path.join(f"{scenario_dir}/results", "topk_dst_predictions.csv"), index=False)
+        accident = 0
+        # if max_score_row["score"] > 0.7:
+        #     mx_ts = int(max_score_row["ts"])
+        #     min_ts = int(df["ts"].min())
+        #     if  mx_ts == min_ts:
+        #         accident = 1
+        return accident
