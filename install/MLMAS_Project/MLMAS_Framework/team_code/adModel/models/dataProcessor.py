@@ -30,7 +30,7 @@ class dataProcessor:
 
         m_proj_scaled = np.where(m_proj < 0,
                                  m_proj / neg_max,
-                                 (m_proj / pos_max) * 0.5)
+                                 m_proj / pos_max)
 
         m_proj_scaled = -m_proj_scaled
 
@@ -64,7 +64,7 @@ class dataProcessor:
         for _, row in df_raw.iterrows():
             if type == 'train':
                 # feat = [row['m_proj'], row['v_theta_src'], row['v_theta_dst'], 0]  #
-                feat = [row['m_proj'], row['speed'], 0, 0]  #
+                feat = [row['m_proj'], 0, 0, 0]  #row['speed']
             elif type == 'val':
                 feat = [0, 0, 0, 0]
             features.append(feat)
