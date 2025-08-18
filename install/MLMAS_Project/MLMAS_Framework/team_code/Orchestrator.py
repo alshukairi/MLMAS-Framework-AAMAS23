@@ -134,8 +134,8 @@ class Orchestrator(AutonomousAgent):
                 world=CarlaDataProvider.get_world(),
                 senaria_name=self.senaria_name_log,
             )
-        accidentMark = self.accidentDetector.run()
 
+        accidentMark = self.accidentDetector.run()
 
         if accidentMark == 1 :
             # 手动伪造前方障碍检测结果
@@ -160,9 +160,6 @@ class Orchestrator(AutonomousAgent):
             if cnt != -1:
                 return cnt
             return self.ml_control  # carla.VehicleControl(steer=control.steer, throttle=float(1.0), brake=control.brake)
-
-
-
 
         # print(len)
 

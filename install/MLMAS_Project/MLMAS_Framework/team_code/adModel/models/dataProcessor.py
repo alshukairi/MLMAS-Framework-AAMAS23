@@ -23,18 +23,8 @@ class dataProcessor:
         # Standardize edge features
         edge_numeric = self.e_feat_df[['rel_dis', 'vx', 'vy', 'yaw', 'm_proj']].copy()
         edge_numeric['speed'] = np.sqrt(edge_numeric['vx'] ** 2 + edge_numeric['vy'] ** 2)
-        m_proj = edge_numeric['m_proj'].values
 
-        neg_max = abs(m_proj[m_proj < 0].min()) if np.any(m_proj < 0) else 1.0
-        pos_max = abs(m_proj[m_proj >= 0].max()) if np.any(m_proj >= 0) else 1.0
-
-        m_proj_scaled = np.where(m_proj < 0,
-                                 m_proj / neg_max,
-                                 m_proj / pos_max)
-
-        m_proj_scaled = -m_proj_scaled
-
-        edge_numeric['m_proj'] = m_proj_scaled
+        
         edge_scaled_features = self.edge_scaler.fit_transform(edge_numeric)
         self.e_feat_df[['rel_dis', 'vx', 'vy', 'yaw', 'm_proj', 'speed']] = edge_scaled_features  # 'rel_dis',
 

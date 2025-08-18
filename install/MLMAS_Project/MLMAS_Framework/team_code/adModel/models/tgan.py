@@ -359,9 +359,9 @@ class AttnModel(torch.nn.Module):
         """
 
         src_ext = torch.unsqueeze(src, dim=1)  # src [B, 1, D]
-        # src_e_ph = torch.zeros_like(src_ext)
+        src_e_ph = torch.zeros_like(src_ext)
 
-        src_e_ph = torch.sum(seq_e, dim=1, keepdim=True)  # [B, 1, De]
+        # src_e_ph = torch.sum(seq_e, dim=1, keepdim=True)  # [B, 1, De]
 
         # self.q_edge_proj = nn.Linear(seq_e.size(-1), seq_e.size(-1)).to(self.dev)
         # src_e_ph = self.q_edge_proj(src_e_ph)

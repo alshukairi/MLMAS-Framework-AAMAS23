@@ -301,12 +301,7 @@ class accidentDetection:
             return frame_span
 
         data_df = self.prepare_dataset(self.collected_data)
-        src_edg_df = data_df[data_df['agent_id'] == self.ego.id]
-        theo = int(len(src_edg_df) / 4)
-        first_three = src_edg_df[["vx", "vy"]].head(theo)
-        if np.all(abs(first_three.values) < 1e-5):
-            self.reset_collected_data()
-            return frame_span
+
         scenario_dir = os.path.join(self.output_dir, f"{self.senaria_name}/{self.scenario_id}")
         os.makedirs(scenario_dir, exist_ok=True)
         os.makedirs(f"{scenario_dir}/results", exist_ok=True)
