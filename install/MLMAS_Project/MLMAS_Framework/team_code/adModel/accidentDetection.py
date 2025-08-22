@@ -11,10 +11,10 @@ from vehicle_types import vehicle_type_mapping
 
 
 class accidentDetection:
-    def __init__(self, ego, world,senaria_name, collect_t = 30, neighbors=2, target_t=60, output_dir = "/home/jamie/MLMAS-Framework-AAMAS23/install/MLMAS_Project/output"):
+    def __init__(self, ego, world,senaria_name, collect_t = 6, neighbors=2, target_t=12, output_dir = "/home/jamie/MLMAS-Framework-AAMAS23/install/MLMAS_Project/output"):
         self.scenario_id = 0
         self.neighbor_count = neighbors
-        self.fps = 1
+        self.fps = 10
         self.s_t = collect_t
         self.e_t = target_t
         self.target_frames = collect_t * self.fps
@@ -151,7 +151,7 @@ class accidentDetection:
         flat_data = [agent for frame in collected_data for agent in frame]
         df = pd.DataFrame(flat_data)
         df = df[df["scenario_id"] == self.scenario_id]
-
+        last_frame = 0
         clear_cols = ["x", "y", "z", "vx", "vy", "yaw"]
         base_cols = ["agent_id", "type_encoded", "l", "w", "h", "scenario_id"]
 
@@ -178,7 +178,7 @@ class accidentDetection:
         padded_df = pd.concat([df, pd.DataFrame(padded_rows)], ignore_index=True)
         padded_df = padded_df.sort_values(by=["agent_id", "frame_id"]).reset_index(drop=True)
 
-        return padded_df
+        return padded_df,last_frame
 
     def create_node_features(self, data_df):
 
@@ -235,6 +235,9 @@ class accidentDetection:
                     "ego":  1 if src == self.ego_new_id else 0
 
                 })
+        # print("edge_rows length:", len(edge_rows))
+        # if edge_rows:
+        #     print("sample row:", edge_rows[0].keys())
 
         edge_df = pd.DataFrame(edge_rows).sort_values("frame_id").reset_index(drop=True)
 
@@ -295,19 +298,38 @@ class accidentDetection:
             all_df.to_csv(os.path.join(f"{s_dir}/results", "original_data.csv"), index=False)
             self.scenario_id += 1
             self.reset_collected_data()
-            return frame_span
+            return 0
 
         if frame_span != self.target_frames:
-            return frame_span
+            return 0
 
-        data_df = self.prepare_dataset(self.collected_data)
+        ego_id = self.ego.id
+
+        data_df,last_frame = self.prepare_dataset(self.collected_data)
+        src_edg_df = data_df[data_df['agent_id'] == ego_id]
+        theo = int(len(src_edg_df) / 4)
+        first_three = src_edg_df[["vx", "vy"]].head(theo)
+        if np.all(abs(first_three.values) < 1e-5):
+            self.reset_collected_data()
+            return 0
+
+        last_dis_df = data_df[(data_df['frame_id'] == last_frame) & (data_df['agent_id'] != ego_id)][['agent_id', 'rel_dis']]
+        keep_ids = set(last_dis_df[last_dis_df['rel_dis'] <= 20.0]['agent_id'])
+        if len(keep_ids) == 0:
+            self.reset_collected_data()
+            return 0
+        keep_ids.add(ego_id)
+        new_df = data_df[data_df['agent_id'].isin(keep_ids)]
+        if new_df.empty:
+            self.reset_collected_data()
+            return 0
 
         scenario_dir = os.path.join(self.output_dir, f"{self.senaria_name}/{self.scenario_id}")
         os.makedirs(scenario_dir, exist_ok=True)
         os.makedirs(f"{scenario_dir}/results", exist_ok=True)
-        data_df.to_csv(f"{scenario_dir}/data_df.csv", index=False)
-        node_features_df = self.create_node_features(data_df)
-        edge_features_df = self.create_edge_features(data_df, node_features_df, scenario_dir)
+        new_df.to_csv(f"{scenario_dir}/data_df.csv", index=False)
+        node_features_df = self.create_node_features(new_df)
+        edge_features_df = self.create_edge_features(new_df, node_features_df, scenario_dir)
         all_edges_df = self.create_all_edges(edge_features_df)
 
         node_features_df.to_csv(f"{scenario_dir}/node_features.csv", index=False)
@@ -341,7 +363,23 @@ class accidentDetection:
         # 打印最大得分行的信息
         max_score_row = df.loc[df["score"].idxmax()]
 
-        if max_score_row["score"] > 0.8:
+        # if max_score_row["score"] > 0.6:
+        #     print(
+        #         f"{scenario_dir},"
+        #         f"Collision Max score: {max_score_row['score']}, "
+        #         f"Src: {max_score_row['src_agent_id']}, "
+        #         f"Dst: {max_score_row['dst_agent_id']}, "
+        #         f"ts: {max_score_row['ts']}, "
+        #         f"Frame ID range: [{max_score_row['frame_start']}, {max_score_row['frame_end']}]"
+        #     )
+
+        df.to_csv(os.path.join(f"{scenario_dir}/results", "topk_dst_predictions.csv"), index=False)
+        accident = 0
+        if max_score_row["score"] > 0.7:
+            # mx_ts = int(max_score_row["ts"])
+            # min_ts = int(df["ts"].min())
+            # if  mx_ts == min_ts:
+            print("slow Down : ")
             print(
                 f"{scenario_dir},"
                 f"Collision Max score: {max_score_row['score']}, "
@@ -350,12 +388,5 @@ class accidentDetection:
                 f"ts: {max_score_row['ts']}, "
                 f"Frame ID range: [{max_score_row['frame_start']}, {max_score_row['frame_end']}]"
             )
-
-        df.to_csv(os.path.join(f"{scenario_dir}/results", "topk_dst_predictions.csv"), index=False)
-        accident = 0
-        # if max_score_row["score"] > 0.7:
-        #     mx_ts = int(max_score_row["ts"])
-        #     min_ts = int(df["ts"].min())
-        #     if  mx_ts == min_ts:
-        #         accident = 1
+            accident = 1
         return accident

@@ -134,32 +134,11 @@ class Orchestrator(AutonomousAgent):
                 world=CarlaDataProvider.get_world(),
                 senaria_name=self.senaria_name_log,
             )
-
+        accidentMark = 0
         accidentMark = self.accidentDetector.run()
 
-        if accidentMark == 1 :
-            # 手动伪造前方障碍检测结果
-            # front_objects_detection = (X, Y, MinX, MinY)
-            # 确保其它检测方向无影响（可选）
-            self.back_objects_detection = -1
-            self.sBack_objects_detection = -1
-            self.SFront_objects_detection = -1
-            self.Left_objects_detection = -1
-            self.right_objects_detection = -1
 
-            self.traffic_light_detection = ("L", "G", 0, 0, 0, 10, 0)  # inBox=0
-            self.main_info = (self.num_frames, 100.0)  # 速度 > 4
 
-            self.ml_control = (self.ml_model.run_step(input_data, timestamp) if self.should_get_ml_control()
-                               else carla.VehicleControl(steer=float(0.0),
-                                                         throttle=float(0.0),
-                                                         brake=float(1.0)))
-
-            cnt = self.send_sensor_data()
-
-            if cnt != -1:
-                return cnt
-            return self.ml_control  # carla.VehicleControl(steer=control.steer, throttle=float(1.0), brake=control.brake)
 
         # print(len)
 
@@ -207,6 +186,24 @@ class Orchestrator(AutonomousAgent):
                             else carla.VehicleControl(steer=float(0.0),
                                                       throttle=float(0.0),
                                                        brake= float(1.0)) )
+
+        if accidentMark == 1:
+            ego_velocity = self._vehicle.get_velocity()
+            ego_speed = (ego_velocity.x ** 2 + ego_velocity.y ** 2 + ego_velocity.z ** 2) ** 0.5  # m/s
+            ego_speed_kmh = ego_speed * 3.6  # 转换成 km/h
+            if ego_speed_kmh >= 5:
+                print(f"speed :  {ego_speed_kmh} , accident : {accidentMark}")
+                print(f"\n")
+                if ego_speed_kmh <= 20:
+                    self.main_info = (self.num_frames, 850.0)  # Break = 0.5
+                elif ego_speed_kmh > 20:
+                    self.main_info = (self.num_frames, 851.0)  # break = 1.0
+
+                cnt = self.send_sensor_data()
+
+                if cnt != -1:
+                    return cnt
+
         if self.should_send_to_jason():
             cnt = self.send_sensor_data()
             if cnt != -1:

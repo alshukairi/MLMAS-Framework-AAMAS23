@@ -47,11 +47,14 @@
 		<-   control(0, 0.0, 0.0, 1.0, false, false, (Sp)). // hard break
 //			.print("===Avoid [front] collision===: ", Sp).
 
-// 15.1 Slow down
-+!start(F): traffic_light(_,_,_,_,_,_,0)
-		  & info(F,S) & S > 90 & ml_control(F,_,St,_,_,_)
-		<-   control(6, 0.0, St, 0.4, false, false, 5). // Slow Down
-//			.print("=== Slow down After Traffic Light Box===: ", F).
+// 4.1 Slow down for Accident Detectio Model
++!start(F): info(F,S) & S == 850 & ml_control(F,_,St,_,_,_)
+		<-   control(6, 0.0, St, 1.0, false, false, 5); // Slow Down
+			.print("=== Slow down After Traffic Light Box===: ", F).
+
++!start(F): info(F,S) &  S == 851 & ml_control(F,_,St,_,_,_)
+		<-   control(6, 0.0, St, 1.0, false, false, 10); // Slow Down
+			.print("=== Slow down After Traffic Light Box===: ", F).
 
  // 5. Good practice to slow down the speedy car when exiting the
  //    the traffic light box, till the road vision and obstacles
@@ -138,69 +141,69 @@
 			&  not traffic_light(F,_,"R",_,_,_,_)
 			& f(F,_,_,MinX,_) & MinX < 3
 		  <- no_action;
-		  	-+block(Nf+1, M);
-		  	.print("===Count Move for Block===: ", Nf).
+		  	-+block(Nf+1, M).
+//		  	.print("===Count Move for Block===: ", Nf).
 
 +!start(F): info(F,Sp) & Sp <= 0 & block(Nf,M) & Nf < M
 			&  not traffic_light(F,_,"R",_,_,_,_)
 			& sF(_,_,_,MinX,_) & MinX < 2
 		  <- no_action;
-		  	-+block(Nf+1, M);
-		  	.print("===Count Move for Block [3]===: ", Nf).
+		  	-+block(Nf+1, M).
+//		  	.print("===Count Move for Block [3]===: ", Nf).
 
 +!start(F): ml_control(F,Th,_,Br,_,_) & Th > 0 & Br < 1
   			 & info(F,Sp) & Sp <= 0.2 & block(Nf,M) & Nf < M
   			&  not traffic_light(F,_,"R",_,_,_,_)
   		  <- no_action;
-  		  	-+block(Nf+1, M);
-  		  	.print("===Count Move for Block [new]===: ", Nf).
+  		  	-+block(Nf+1, M).
+//  		.print("===Count Move for Block [new]===: ", Nf).
 
 +!start(F): block(Nf, M) & Nf >= M
 		   & info(F,Sp) & Sp < 1.0 & not traffic_light(F,_,"R",_,_,_,_)
 		   & not sF(F,_,_,_,_)
-		  <-  control(5, 0.8, 0.0, 0.0, false, false, 5); // Go forward
-		  .print("=== Move for Block sf[1]===: ", Nf).
+		  <-  control(5, 0.8, 0.0, 0.0, false, false, 5). // Go forward
+//		  .print("=== Move for Block sf[1]===: ", Nf).
 
 +!start(F): block(Nf, M) & Nf >= M & not traffic_light(F,_,"R",_,_,_,_)
 		   & info(F,Sp) & Sp < 1.0 & f(F,_,Y,MinX,_) & MinX > 2 & Y > 0.05
 		  <-  control(5, 0.8, -1.0, 0.0, false, false, 2). // Go forward and turn
-		  .print("=== Move for Block sF[2,1]===: ", Nf).
+//		  .print("=== Move for Block sF[2,1]===: ", Nf).
 +!start(F): block(Nf, M) & Nf >= M & not traffic_light(F,_,"R",_,_,_,_)
 		   & info(F,Sp) & Sp < 1.0 & f(F,_,Y,MinX,_) & MinX > 2 & Y <= -0.05
 		  <-  control(5, 0.8, 1.0, 0.0, false, false, 2). // Go forward and turn
-		  .print("=== Move for Block sF[2,2]===: ", Nf).
+//		  .print("=== Move for Block sF[2,2]===: ", Nf).
 
 +!start(F): block(Nf, M) & Nf >= M & not traffic_light(F,_,"R",_,_,_,_)
 		   & info(F,Sp) & Sp < 1.0 & sF(_,_,_,MinX,_) & MinX <= 1.5
 		   & sB(F,_,_,MinX2,_) & MinX2 > 1.5
-		  <-  control(5, 0.8, -0.2, 0.0, false, true, 2); // reverse
-		  	  .print("=== [Reverse] for Block sF[5]===: ", Nf).
+		  <-  control(5, 0.8, -0.2, 0.0, false, true, 2). // reverse
+//		  	  .print("=== [Reverse] for Block sF[5]===: ", Nf).
 
 +!start(F): block(Nf, M) & Nf >= M & not traffic_light(F,_,"R",_,_,_,_)
 		   & info(F,Sp) & Sp < 1.0 & sF(F,_,_,MinX,_) & MinX <= 2
 		   & not sB(F,_,_,_,_)
-		  <-  control(5, 0.8, 0.0, 0.0, false, true, 5); // reverse
-		  	  .print("=== [Reverse] for Block sF[3]===: ", Nf).
+		  <-  control(5, 0.8, 0.0, 0.0, false, true, 5). // reverse
+//		  	  .print("=== [Reverse] for Block sF[3]===: ", Nf).
 
 +!start(F): block(Nf, M) & Nf >= M & not traffic_light(F,_,"R",_,_,_,_)
 		   & info(F,Sp) & Sp < 1.0 & sF(F,_,_,MinX,_) & MinX <= 2
 		   & sB(F,_,_,MinX2,_) & MinX2 > 1.5
-		  <-  control(5, 0.8, 0.0, 0.0, false, true, 2); // reverse
-		  	  .print("=== [Reverse] for Block sF[4]===: ", Nf).
+		  <-  control(5, 0.8, 0.0, 0.0, false, true, 2). // reverse
+//		  	  .print("=== [Reverse] for Block sF[4]===: ", Nf).
 
 
 
 +!start(F): info(F,Sp) & Sp < 1.0 & block(Nf, M) & Nf >= M
-		  <- no_action;
-		  	.print("===Count Move for Block [2]===: ", Nf).
+		  <- no_action.
+//		  	.print("===Count Move for Block [2]===: ", Nf).
 
 
 +!start(F): stopCount(N) & N > 200
 		  & info(F,Sp) & Sp <= 0 & traffic_light(F,_,"G",_,_,_,_)
 		  & not sF(F,_,_,_,_)
 		<-   control(4, 1.0, 0.0 , 0.0, false, false, 20);
-			  -+stopCount(0);
-		      .print("=== [Pulse to move] ===: ", N). // Go forward
+			  -+stopCount(0).
+//		      .print("=== [Pulse to move] ===: ", N). // Go forward
 //===============================
 
 
