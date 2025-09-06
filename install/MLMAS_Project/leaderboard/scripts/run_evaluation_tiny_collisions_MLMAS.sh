@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ulimit -s unlimited
-export CARLA_ROOT=/home/hilalss/work/CARLA_0.9.10.1
+export CARLA_ROOT=$(pwd)/work/CARLA_0.9.10.1
 export CARLA_SERVER=${CARLA_ROOT}/CarlaUE4.sh
 export PYTHONPATH=$PYTHONPATH:${CARLA_ROOT}/PythonAPI
 export PYTHONPATH=$PYTHONPATH:${CARLA_ROOT}/PythonAPI/carla
@@ -18,15 +18,15 @@ export DEBUG_CHALLENGE=0
 export REPETITIONS=1 # multiple evaluation runs
 export ROUTES=leaderboard/data/validation_routes/lav_collisions_tiny.xml
 # export TEAM_AGENT=leaderboard/team_code/auto_pilot.py # agent
-export TEAM_AGENT=/home/hilalss/work/LAV/team_code/ml_mas_agent.py #/home/hilalss/work/LAV/leaderboard/leaderboard/autoagents/human_agent.py
+export TEAM_AGENT=$(pwd)/work/LAV/team_code/ml_mas_agent.py #$(pwd)/work/LAV/leaderboard/leaderboard/autoagents/human_agent.py
 # export TEAM_CONFIG=aim/log/aim_ckpt # model checkpoint, not required for expert
-export TEAM_CONFIG=/home/hilalss/work/LAV/team_code/config.yaml  #/home/hilalss/work/LAV/leaderboard/leaderboard/autoagents/human_agent_config.txt
-export ML_MODEL=/home/hilalss/work/LAV/team_code/lav_agent.py
+export TEAM_CONFIG=$(pwd)/work/LAV/team_code/config.yaml  #$(pwd)/work/LAV/leaderboard/leaderboard/autoagents/human_agent_config.txt
+export ML_MODEL=$(pwd)/work/LAV/team_code/lav_agent.py
 export CHECKPOINT_ENDPOINT=results/MLMAS_result_tiny_collision.json # results file
 export SCENARIOS=leaderboard/data/longest6/eval_scenarios.json
 # export SCENARIOS=leaderboard/data/longest6/eval_scenarios.json
 # export SAVE_PATH=data/expert # path for saving episodes while evaluating
-export RECORD_PATH=/home/hilalss/work/LAV/data/rec/tiny/collision/MLMAS/
+export RECORD_PATH=$(pwd)/work/LAV/data/rec/tiny/collision/MLMAS/
 export RESUME=True
 
 python3 ${LEADERBOARD_ROOT}/leaderboard/leaderboard_evaluator.py \
