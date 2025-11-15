@@ -186,8 +186,13 @@ class Orchestrator(AutonomousAgent):
                             else carla.VehicleControl(steer=float(0.0),
                                                       throttle=float(0.0),
                                                        brake= float(1.0)) )
+        jason_cond = self.should_send_to_jason()
+        if jason_cond:
+            cnt = self.send_sensor_data()
+            if cnt != -1:
+                return cnt
 
-        if accidentMark == 1:
+        if accidentMark == 1 and not jason_cond:
             ego_velocity = self._vehicle.get_velocity()
             ego_speed = (ego_velocity.x ** 2 + ego_velocity.y ** 2 + ego_velocity.z ** 2) ** 0.5  # m/s
             ego_speed_kmh = ego_speed * 3.6  # 转换成 km/h
@@ -203,11 +208,6 @@ class Orchestrator(AutonomousAgent):
 
                 if cnt != -1:
                     return cnt
-
-        if self.should_send_to_jason():
-            cnt = self.send_sensor_data()
-            if cnt != -1:
-                return cnt
         return  self.ml_control #carla.VehicleControl(steer=control.steer, throttle=float(1.0), brake=control.brake)
 
     def should_get_ml_control(self):
