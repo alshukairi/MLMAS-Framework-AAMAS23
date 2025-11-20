@@ -5,10 +5,13 @@ import math
 from sklearn.preprocessing import StandardScaler
 
 class dataProcessor:
-    def __init__(self, root_dir, output_dir, mask_node_num):
+    def __init__(self, root_dir, output_dir, mask_node_num, pre_t, tar_t):
         self.root_dir = root_dir
         self.output_dir = output_dir
         self.mask_node_num = mask_node_num
+        self.pre_t = pre_t
+        self.tra_t = pre_t-1
+        self.target_t = tar_t
         self.seed = 42
         self.start_idx = 1
         self.edge_scaler = None
@@ -21,12 +24,16 @@ class dataProcessor:
 
     def process(self):
         # Standardize edge features
-        edge_numeric = self.e_feat_df[['rel_dis', 'vx', 'vy', 'yaw', 'm_proj']].copy()
+        mask = self.e_feat_df["sign"] != 3
+
+        # Extract numeric features
+        edge_numeric = self.e_feat_df.loc[mask, ['rel_dis', 'vx', 'vy', 'yaw', 'm_proj']].copy()
+
         edge_numeric['speed'] = np.sqrt(edge_numeric['vx'] ** 2 + edge_numeric['vy'] ** 2)
 
-        
+
         edge_scaled_features = self.edge_scaler.fit_transform(edge_numeric)
-        self.e_feat_df[['rel_dis', 'vx', 'vy', 'yaw', 'm_proj', 'speed']] = edge_scaled_features  # 'rel_dis',
+        self.e_feat_df.loc[mask, ['rel_dis', 'vx', 'vy', 'yaw', 'm_proj', 'speed']] = edge_scaled_features
 
         # Standardize node features
         node_numeric = self.n_feat_df[['w', 'h', 'l']].copy()
@@ -34,12 +41,10 @@ class dataProcessor:
         self.n_feat_df[['w', 'h', 'l']] = node_scaled_features
 
         self.valid_edge_feats = self.e_feat_df.sort_values(by='time').copy()
-        unique_times = np.sort(self.valid_edge_feats['time'].unique())
-        ts_cutoffs = np.quantile(unique_times, [0.5, 0.7, 0.9])
 
-        self.train_df_raw = self.valid_edge_feats[(self.valid_edge_feats['time'] <= ts_cutoffs[0])]
-        self.val_df_raw = self.valid_edge_feats[
-            (self.valid_edge_feats['time'] == int(ts_cutoffs[1])) | (self.valid_edge_feats['time'] == int(ts_cutoffs[2]))]
+        self.train_df_raw = self.valid_edge_feats[(self.valid_edge_feats['time'] <= self.tra_t)]
+        self.val_df_raw = self.valid_edge_feats[(self.valid_edge_feats['time'] >= self.pre_t) &
+                                                (self.valid_edge_feats['time'] <= self.target_t)]
 
         # print(ts_cutoffs[0], int(ts_cutoffs[1]), int(ts_cutoffs[2]))
         # print(len(self.val_df_raw))
@@ -63,6 +68,7 @@ class dataProcessor:
                 'i': row['dst'],
                 'ts': row['time'],
                 'ego': row['ego'],
+                'sign': row['sign'],
                 'idx': feature_idx
             })
             feature_idx += 1

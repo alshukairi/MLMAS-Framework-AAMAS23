@@ -42,11 +42,13 @@ class TGANTrainer:
 
         self.finder_df = pd.read_csv(os.path.join(self.data_dir, "finder_df.csv"))
 
-        pos_val_df = val_df[(val_df['ego'] == 1)].copy()
+        pos_val_df = val_df[(val_df['sign'] == 2)].copy()
         self.pos_val_src = pos_val_df.u.values
         self.pos_val_dst = pos_val_df.i.values
         self.pos_val_ts = pos_val_df.ts.values
 
+        # fake_val_df = val_df[(val_df['sign'] == 3)].copy()
+        # self.fake_val_dst = fake_val_df.i.values
 
 
     def _init_model(self):
@@ -74,7 +76,7 @@ class TGANTrainer:
     def eval(self):
         self.tgan.ngh_finder = self.full_ngh_finder
 
-        df = self.eval_one_epoch(
+        df = self.inference_one_epoch(
             self.tgan,
             self.pos_val_src, self.pos_val_dst, self.pos_val_ts,
             batch_size = 8, num_neighbors = 20
@@ -87,7 +89,7 @@ class TGANTrainer:
         print(f"[{name}] shape={arr.shape} dtype={arr.dtype} "
               f"nan={np.isnan(arr).any()} inf={np.isinf(arr).any()}")
 
-    def eval_one_epoch(self, tgan, src, dst, ts, batch_size, num_neighbors):
+    def inference_one_epoch(self, tgan, src, dst, ts, batch_size, num_neighbors):
         results = []
         with torch.no_grad():
             tgan.eval()
@@ -116,7 +118,6 @@ class TGANTrainer:
                     })
 
         df = pd.DataFrame(results)
-
 
         return df
 
