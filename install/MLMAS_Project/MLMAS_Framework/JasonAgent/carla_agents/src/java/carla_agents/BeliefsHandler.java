@@ -111,7 +111,19 @@ public class BeliefsHandler extends Thread {
 
 				}
 
-				removePercept(current_frame);
+                if (data_jsn.containsKey("mlAlert")) {
+
+                    String state = data_jsn.getJsonObject("mlAlert").get("state").toString();
+                    String p = data_jsn.getJsonObject("mlAlert").get("p").toString().replace("\"", "");
+                    String d = data_jsn.getJsonObject("mlAlert").get("d").toString();
+
+                    this.env.addPercept("carla_control", Literal.parseLiteral("mlAlert(" + current_frame + "," + state + "," + p + "," + d + ")"));
+
+
+                        }
+
+
+ 				removePercept(current_frame);
 				// Activate Jason Plan
 				this.env.addPercept("carla_control",
 						Literal.parseLiteral("S" + this.scenario + "::startP(" + current_frame + ")"));
@@ -163,6 +175,8 @@ public class BeliefsHandler extends Thread {
 			this.env.removePerceptsByUnif("carla_control", Literal.parseLiteral("l(" + frm + ",_,_,_,_)"));
 			this.env.removePerceptsByUnif("carla_control",
 					Literal.parseLiteral("S" + this.scenario + "::startP(" + frm + ")"));
+
+            this.env.removePerceptsByUnif("carla_control", Literal.parseLiteral("mlAlert(" + frm + ",_,_,_)"));
 
 			this.q_beliefs_frames.remove(frm);
 			frm = this.q_beliefs_frames.floor(frame_to_remove);

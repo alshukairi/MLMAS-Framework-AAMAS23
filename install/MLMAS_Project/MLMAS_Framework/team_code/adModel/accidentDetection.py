@@ -18,8 +18,9 @@ class accidentDetection:
         self.s_t = collect_t
         self.pre_t = collect_t + 1
         self.e_t = target_t
-        self.target_frames_start = collect_t * self.fps
-        self.target_frames_end = target_t * self.fps
+        self.target_frames_start = collect_t * self.fps -1
+        self.target_frames_end = target_t * self.fps -1
+        self.size_completeness = (self.target_frames_end + 1) * self.neighbor_count
         self.ego = ego
         self.world = world
         self.ego_new_id = None
@@ -34,7 +35,7 @@ class accidentDetection:
         self.time_map = {}
         self.senaria_name = senaria_name
         self.bias_power = bias_power
-
+        self.predict_id = 0
         # world = CarlaDataProvider.get_world()
 
     def reset_collected_data(self):
@@ -176,12 +177,12 @@ class accidentDetection:
         df = pd.DataFrame(flat_data)
         df = df[df["scenario_id"] == self.scenario_id]
         last_frame = 0
+        first_frame = 0
         clear_cols = ["x", "y", "z", "vx", "vy", "yaw"]
         base_cols = ["agent_id", "type_encoded", "l", "w", "h", "scenario_id" , "sign"]
 
         padded_rows = []
         duration = self.target_frames_end - self.target_frames_start
-
         for vid in df["agent_id"].unique():
             vehicle_data = df[df["agent_id"] == vid].sort_values("frame_id")
 
@@ -339,7 +340,7 @@ class accidentDetection:
 
         colle = self.collect_one_frame(self.collected_data, self.fixed_neighbors, self.fixed_fake_neighbors)
         if colle == 0 :
-            return 0
+            return 0, 0, 0
         record_frame_span = 0
         if self.record_collected_data:
             self.collect_one_frame(self.record_collected_data, self.record_fixed_neighbors, self.record_fixed_fake_neighbors)
@@ -348,7 +349,7 @@ class accidentDetection:
 
         # 检查 frame_id 的跨度是否达到目标帧数
         if len(self.collected_data) < 2:
-            return 0
+            return 0, 0, 0
 
         ego_frame_ids = [frame[0]["frame_id"] for frame in self.collected_data]
         frame_span = ego_frame_ids[-1] - ego_frame_ids[0]
@@ -368,17 +369,25 @@ class accidentDetection:
 
 
         if frame_span != self.target_frames_start:
-            return 0
+            return 0, 0, 0
 
         ego_id = self.ego.id
 
         data_df, first_frame,last_frame = self.prepare_dataset(self.collected_data)
+        
+        if len(data_df) < self.size_completeness:
+            # print(len(data_df))
+            # print(self.size_completeness)
+            self.reset_collected_data()
+            return 0, 0, 0
+
         src_edg_df = data_df[data_df['agent_id'] == ego_id]
+
         theo = int(len(src_edg_df) / 2)
         first_three = src_edg_df[["vx", "vy"]].head(theo)
         if np.all(abs(first_three.values) < 1e-5):
             self.reset_collected_data()
-            return 0
+            return 0, 0, 0
 
         # fake_id = list(self.fixed_fake_neighbors.keys())[0]
         # constraint_df = data_df[
@@ -463,24 +472,30 @@ class accidentDetection:
         #     )
 
         df.to_csv(os.path.join(f"{scenario_dir}/results", "topk_dst_predictions.csv"), index=False)
-        accident = 1
-        print("slow Down : ")
-        print(
-            f"Scenario: {self.scenario_id},"
-            f"ts: {max_score_row['ts']}, "
-            f"Collision Max score: {max_score_row['score']}, "
-            f"Dst: {max_score_row['dst_agent_id']}, "
-            f"Src: {max_score_row['src_agent_id']}, "
-        )
-        # if max_score_row["score"] >=  0.7:
-        #     print("slow Down : ")
-        #     print(
-        #         f"{scenario_dir},"
-        #         f"Collision Max score: {max_score_row['score']}, "
-        #         f"Src: {max_score_row['src_agent_id']}, "
-        #         f"Dst: {max_score_row['dst_agent_id']}, "
-        #         f"ts: {max_score_row['ts']}, "
-        #         # f"Frame ID range: [{max_score_row['frame_start']}, {max_score_row['frame_end']}]"
-        #     )
-        #     accident = 2
-        return accident
+        accident = 0
+        probability = 0
+        dangerous = 0
+        # print("slow Down : ")
+        # print(
+        #     f"Scenario: {self.scenario_id},"
+        #     f"ts: {max_score_row['ts']}, "
+        #     f"Collision Max score: {max_score_row['score']}, "
+        #     f"Dst: {max_score_row['dst_agent_id']}, "
+        #     f"Src: {max_score_row['src_agent_id']}, "
+        # )
+        if max_score_row["score"] >=  0.6:
+            print("slow Down : ")
+            print(
+                f"{scenario_dir},"
+                f"Collision Max score: {max_score_row['score']}, "
+                f"Src: {max_score_row['src_agent_id']}, "
+                f"Dst: {max_score_row['dst_agent_id']}, "
+                f"ts: {max_score_row['ts']}, "
+                # f"Frame ID range: [{max_score_row['frame_start']}, {max_score_row['frame_end']}]"
+            )
+            accident = 1
+            probability = max_score_row["score"]
+            if self.predict_id == max_score_row['dst_agent_id']:
+                dangerous = 1
+            self.predict_id = max_score_row['dst_agent_id']
+        return accident, probability, dangerous

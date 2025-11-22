@@ -135,9 +135,7 @@ class Orchestrator(AutonomousAgent):
                 senaria_name=self.senaria_name_log,
             )
         accidentMark = 0
-        accidentMark = self.accidentDetector.run()
-
-
+        accidentMark, probability, dangerous = self.accidentDetector.run()
 
 
         # print(len)
@@ -164,7 +162,6 @@ class Orchestrator(AutonomousAgent):
 
         self.main_info = (self.num_frames, round(ego_vehicle_speed,3))
         self.lidar_df = self.preprocess(lidar)
-
         self.front_objects_detection = self.minimum_obstacle_distance()
 
         self.back_objects_detection = self.minimum_obstacle_distance(direction="B")
@@ -176,8 +173,20 @@ class Orchestrator(AutonomousAgent):
         self.Left_objects_detection = self.minimum_obstacle_distance(direction="L")
 
         self.right_objects_detection = self.minimum_obstacle_distance(direction="R")
-
         self.traffic_light_detection = self.check_traffic_lights()
+
+        if accidentMark == 1:
+            self.mlAlert = (accidentMark, probability, dangerous)
+            print(f"dis_f: {self.front_objects_detection}")
+            print(f"dis_sf: {self.SFront_objects_detection}")
+            print(f"dis_r : {self.right_objects_detection}")
+            print(f"dis_l : {self.Left_objects_detection}")
+            print(f"dis_b: {self.back_objects_detection}")
+            print(f"dis_sb: {self.sBack_objects_detection}")
+        else :
+            self.mlAlert = -1
+
+
         if self.traffic_light_detection != -1 and self.traffic_light_detection[0] == "A":
             self.ahead_traffic_light_distance = self.traffic_light_detection[4]
 
@@ -192,22 +201,6 @@ class Orchestrator(AutonomousAgent):
             if cnt != -1:
                 return cnt
 
-        if accidentMark == 1 and not jason_cond:
-            ego_velocity = self._vehicle.get_velocity()
-            ego_speed = (ego_velocity.x ** 2 + ego_velocity.y ** 2 + ego_velocity.z ** 2) ** 0.5  # m/s
-            ego_speed_kmh = ego_speed * 3.6  # 转换成 km/h
-            if ego_speed_kmh >= 5:
-                print(f"speed :  {ego_speed_kmh} , accident : {accidentMark}")
-                print(f"\n")
-                if ego_speed_kmh <= 20:
-                    self.main_info = (self.num_frames, 850.0)  # Break = 0.5
-                elif ego_speed_kmh > 20:
-                    self.main_info = (self.num_frames, 851.0)  # break = 1.0
-
-                cnt = self.send_sensor_data()
-
-                if cnt != -1:
-                    return cnt
         return  self.ml_control #carla.VehicleControl(steer=control.steer, throttle=float(1.0), brake=control.brake)
 
     def should_get_ml_control(self):
@@ -224,7 +217,8 @@ class Orchestrator(AutonomousAgent):
                 or self.sBack_objects_detection != -1
                 or self.SFront_objects_detection != -1
                 or self.Left_objects_detection != -1
-                or self.right_objects_detection != -1)
+                or self.right_objects_detection != -1
+                or self.mlAlert != -1)
 
         # if ahead traffic light just send it once except if something change
         cond = cond or (
@@ -282,7 +276,7 @@ class Orchestrator(AutonomousAgent):
             return "R"
         return ""
 
-    def minimum_obstacle_distance(self , direction = "F"):
+    def minimum_obstacle_distance(self , direction = "F" ):
         ## Filter lidar points by direction:
         ## F: front (45 degree) | SF: front (straight)
         ## B: Back (45 degree)  | SB: Back (straight)
@@ -294,7 +288,7 @@ class Orchestrator(AutonomousAgent):
             final_df = self.lidar_df[self.lidar_df.x > x_offset]
             final_df = final_df[abs(final_df.y) < 1.5]
         elif direction == "SB":
-            x_offset = self.ego_car_diminsions.x
+
             final_df = self.lidar_df[self.lidar_df.x < (0-x_offset)]
             final_df = final_df[abs(final_df.y) < 1.5] ## lane standard width is 3.65m
 
@@ -318,11 +312,14 @@ class Orchestrator(AutonomousAgent):
         if len(final_df) > 0:
             # ds = [distance(x,y) for x,y in final_df[["x","y"]].values]
             min_x = min(final_df.x.abs())
-            y = final_df[final_df.x.abs() == min_x].y.values[0]
+            p1_x = min_x - x_offset
+            p1_y = final_df[final_df.x.abs() == min_x].y.values[0]
             min_y = min(final_df.y.abs())
-            x = final_df[final_df.y.abs() == min_y].x.values[0]
-            x = (x - x_offset) if x >= x_offset else (x + x_offset)
-            return (x, y ,min_x - x_offset , min_y) # min(final_df.y.abs()), min(ds))
+            p2_y = min_y
+            p2_x = final_df[final_df.y.abs() == min_y].x.values[0]
+            p2_x = (p2_x - x_offset) if p2_x >= x_offset else (p2_x + x_offset)
+
+            return (p2_x, p1_y ,p1_x , p2_y) # min(final_df.y.abs()), min(ds))
         return -1
 
     def check_traffic_lights(self):

@@ -7,8 +7,30 @@
 
  // Metrics types:
  // (0) front (1) Crossing (far) (2) Crossing (close) (3) Back
- //	(4) Green Go (5) Move from the box (6) Slow down
+ //	(4) Green Go (5) Move from the box (6) Slow down (7) Machine Learning Warning (8) Default
 //control(MrtricsType,throttle, steer, brake, hand_brake, reverse, repeat)
+
+// 0. Slow down for Accident Detectio Model
++!start(F): mlAlert(F,S,P,D) & info(F,Sp) & ml_control(F,_,St,_,_,_) & Sp > 6
+            & not f(_,_,_,_,_) & not sF(_,_,_,_,_) & not b(_,_,_,_,_) & not sB(_,_,_,_,_) & not l(_,_,_,_,_) & not r(_,_,_,_,_)
+		<-  control(7, 0.0, St, 0.2, false, false, 2). // Slow Down
+		    //.print("=== Slow Normal,===: ", F," states ", S, " probability is ", P, " Speed is ", Sp, " dangerous? ", D).
+
++!start(F): mlAlert(F1,_,P1,_) & mlAlert(F2,S,P2,D) & D == 1 & P2 - P1 < 0 & info(F2,Sp) & ml_control(F2,_,St,_,_,_) & Sp > 0
+            & not f(_,_,_,_,_) & not sF(_,_,_,_,_) & not b(_,_,_,_,_) & not sB(_,_,_,_,_) & not l(_,_,_,_,_) & not r(_,_,_,_,_)
+		<-  control(7, 0.0, St, 0.3, false, false, 2); // Slow Down
+		    .print("=== Double, P Lower ===: "," F1 ", F1," F2 ", F2," states ", S, " Speed is ", Sp, " dangerous? ", D, " P1 ", P1, " P2 ", P2).
+
++!start(F): mlAlert(F1,_,P1,_) & mlAlert(F2,S,P2,D) & D == 1 & P2 - P1 > 0 & info(F2,Sp) & ml_control(F2,_,St,_,_,_) & Sp > 0
+            & not f(_,_,_,_,_) & not sF(_,_,_,_,_) & not b(_,_,_,_,_) & not sB(_,_,_,_,_) & not l(_,_,_,_,_) & not r(_,_,_,_,_)
+		<-  control(7, 0.0, St, 1.0, false, false, 2); // Hard Break
+		    .print("=== Double, P higher ===: "," F1 ", F1," F2 ", F2," states ", S, " Speed is ", Sp, " dangerous? ", D, " P1 ", P1, " P2 ", P2).
+
++!start(F): mlAlert(F,S,P,D) & D == 0 & info(F,Sp) & ml_control(F,T,St,B,Hb,R) & Sp < 6
+            & not f(_,_,_,_,_) & not sF(_,_,_,_,_) & not b(_,_,_,_,_) & not sB(_,_,_,_,_) & not l(_,_,_,_,_) & not r(_,_,_,_,_)
+		<-  control(8, T, St, B, Hb, R, 0); // Back
+		    .print("=== Default,===: ", F," states ", S, " probability is ", P, " Speed is ", Sp, " dangerous? ", D).
+
 
 
  // 1. A plan to avoid [close obstacles] (Cars, people, ..etc) collision
@@ -16,45 +38,37 @@
  // in front of the car.
 
 +!start(F): f(F,X,_,_, MinY) & MinY < 2.0 & X < 4.5
-			& info(F,Sp) & Sp > 0.5 & block(Nf, M) & Nf < M
-		<-   control(2, 0.0, 0.0, 1.0, false, false, (Sp*3)). // hard break
+			& info(F,Sp) & Sp > 0.5 & block(Nf, M) & Nf < M & mlAlert(F,_,_,D) & D == 1
+		<-   control(2, 0.0, 0.0, 1.0, false, false, (Sp*3)); // hard break
+             .print("===Avoid Road [close] Collision===: ", Sp).
 
  // 2. A plan to avoid [Far obstacles] collision
  // That are moving toward the car from the [Right side].
-+!start(F): f(F,X,Y,_, MinY) & f(F2,_,Y2,_, MinY2) & (F-F2) <= 2
++!start(F): f(F,X,Y,_, MinY) & f(F2,_,Y2,_, MinY2) & (F-F2) <= 2 & mlAlert(F,_,_,D)
 			& Y > 0 & Y2 > 0 &  MinY > 2.0 & X < 6 & Y < 4
 			& (MinY2 - MinY) > 0.15 & ml_control(F,_,St,_,_,_) & St < 0.1
 			& info(F,Sp)
-		<-   control(1, 0.0, 0.0, 1.0, false, false, (Sp*3)). // hard break
-//			.print("===Avoid Road [Far Crossing (R)] Collision===: ", Sp).
+		<-   control(1, 0.0, 0.0, 1.0, false, false, (Sp*3)); // hard break
+			.print("===Avoid Road [Far Crossing (R)] Collision===: ", Sp).
 
  // 3. A plan to avoid [Far obstacles] collision
  // That are moving toward the car from the [Left side].
-+!start(F): f(F,X,Y,_, MinY) & f(F2,_,Y2,_, MinY2) & (F-F2) <= 2
++!start(F): f(F,X,Y,_, MinY) & f(F2,_,Y2,_, MinY2) & (F-F2) <= 2 & mlAlert(F,_,_,D)
 			& Y < 0 & Y2 < 0 &  MinY > 2.0 & X < 6 & Y > -4
 			& (MinY2 - MinY) > 0.15  & ml_control(F,_,St,_,_,_) & St > - 0.1
 			& info(F,Sp)
-		<-   control(1, 0.0, 0.0, 1.0, false, false, (Sp*3)). // hard break
-//			.print("===Avoid Road [Far Crossing (L)] Collision===: ", Sp).
+		<-   control(1, 0.0, 0.0, 1.0, false, false, (Sp*3)); // hard break
+			.print("===Avoid Road [Far Crossing (L)] Collision===: ", Sp).
 
  // 4. A plan to avoid [front obstacles] collision
  // That are moving or stopping in front of the car
  // in an early stage to be able to stop in the right time.
-+!start(F):  sF(F,_,_,MinX,_) & MinX < 7.9
++!start(F):  sF(F,_,_,MinX,_) & MinX < 7.9 & mlAlert(F,_,_,D)
 			& info(F,Sp)  & Sp > 0.01 & ml_control(F,_,St,_,_,_)
 			& math.abs(St) < 0.05 & sF(F2,_,_,MinX2,_)
 			& (F-F2) <= 2 & (MinX2 - MinX) > 0.1
-		<-   control(0, 0.0, 0.0, 1.0, false, false, (Sp)). // hard break
-//			.print("===Avoid [front] collision===: ", Sp).
-
-// 4.1 Slow down for Accident Detectio Model
-+!start(F): info(F,S) & S == 850 & ml_control(F,_,St,_,_,_)
-		<-   control(6, 0.0, St, 1.0, false, false, 5); // Slow Down
-			.print("=== Slow down After Traffic Light Box===: ", F).
-
-+!start(F): info(F,S) &  S == 851 & ml_control(F,_,St,_,_,_)
-		<-   control(6, 0.0, St, 1.0, false, false, 10); // Slow Down
-			.print("=== Slow down After Traffic Light Box===: ", F).
+		<-   control(0, 0.0, 0.0, 1.0, false, false, (Sp)); // hard break
+			.print("===Avoid [front] collision===: ", Sp, " Min X2 ", MinX2, " MinX", MinX).
 
  // 5. Good practice to slow down the speedy car when exiting the
  //    the traffic light box, till the road vision and obstacles
@@ -209,7 +223,7 @@
 
 
 // 15. send back no action, to allow the ML model control.
-+!start(F): info(F,Sp) & Sp <= 0 & stopCount(N)
++!start(F): info(F,Sp, _) & Sp <= 0 & stopCount(N)
 			<- no_action;
 			  -+block(0,60);
 			  -+stopCount(N+1).

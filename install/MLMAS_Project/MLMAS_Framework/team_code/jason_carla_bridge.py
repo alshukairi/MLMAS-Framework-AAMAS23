@@ -189,22 +189,24 @@ class JsonProcessing:
     def save_mas_metrics(self, total_frames, file_path):
         if exists(file_path) == False:
             metrics_f = open(file_path, 'w')
-            metrics_f.write("total_frames;col_front;col_cross_far;col_cross_close;col_back;trf_go;trf_move;trf_slow_down\n")
+            metrics_f.write("total_frames;col_front;col_cross_far;col_cross_close;col_back;trf_go;trf_move;trf_slow_down;ml_Alert\n")
             metrics_f.close()
 
         metrics_f = open(file_path, 'a')
         if total_frames > 0:
-            metrics_f.write("%i;%.3f;%.3f;%.3f;%.3f;%.3f;%.3f;%.3f\n"%(total_frames,
+            metrics_f.write("%i;%.3f;%.3f;%.3f;%.3f;%.3f;%.3f;%.3f;%.3f;;%.3f\n"%(total_frames,
                                                     self.metrics_stats[0]/total_frames,
                                                     self.metrics_stats[1]/total_frames,
                                                     self.metrics_stats[2]/total_frames,
                                                     self.metrics_stats[3]/total_frames,
                                                     self.metrics_stats[4]/total_frames,
                                                     self.metrics_stats[5]/total_frames,
-                                                    self.metrics_stats[6]/total_frames
+                                                    self.metrics_stats[6]/total_frames,
+                                                    self.metrics_stats[7] / total_frames,
+                                                    self.metrics_stats[8] / total_frames,
                                                                 ))
         metrics_f.close()
-        self.metrics_stats = [0,0,0,0,0,0,0]
+        self.metrics_stats = [0,0,0,0,0,0,0,0,0]
 
 
 
@@ -221,7 +223,7 @@ class JsonProcessing:
             reverse = final_json['data']['reverse']
             repeat = final_json['data']['repeat']
 
-            if mT >=0 and mT <= 6: self.metrics_stats[mT] += repeat
+            if mT >=0 and mT <= 8: self.metrics_stats[mT] += repeat
 
             return carla.VehicleControl(steer=float(steer),
                                         throttle=float(throttle),
@@ -291,6 +293,13 @@ class JsonProcessing:
                                 "d": str(round(self.ml_mas_agent.traffic_light_detection[4],3)),
                                 "inBox": (1 if self.ml_mas_agent.traffic_light_detection[5] else 0)
                                  }
+
+        if self.ml_mas_agent.mlAlert != -1:
+            final_json["mlAlert"] = {
+                "state": self.ml_mas_agent.mlAlert[0],
+                "p": str(round(self.ml_mas_agent.mlAlert[1], 3)),
+                "d": self.ml_mas_agent.mlAlert[2]
+            }
 
         return self.JSON_pack(name="sensors", jsn= final_json)
 
