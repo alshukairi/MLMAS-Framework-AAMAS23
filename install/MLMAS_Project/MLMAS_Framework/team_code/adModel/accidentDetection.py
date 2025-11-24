@@ -359,10 +359,11 @@ class accidentDetection:
 
         if record_frame_span == self.target_frames_end:
             s_dir = os.path.join(self.output_dir, f"{self.senaria_name}/{self.record_scenario_id}")
-            flat_data = [agent for frame in self.record_collected_data for agent in frame]
-            all_df = pd.DataFrame(flat_data)
-            all_df = all_df.sort_values(by=["agent_id", "frame_id"]).reset_index(drop=True)
-            all_df.to_csv(os.path.join(f"{s_dir}/results", "original_data.csv"), index=False)
+            if os.path.exists(s_dir):
+                flat_data = [agent for frame in self.record_collected_data for agent in frame]
+                all_df = pd.DataFrame(flat_data)
+                all_df = all_df.sort_values(by=["agent_id", "frame_id"]).reset_index(drop=True)
+                all_df.to_csv(os.path.join(f"{s_dir}/results", "original_data.csv"), index=False)
 
             self.record_collected_data = []
             self.record_fixed_neighbors = None
