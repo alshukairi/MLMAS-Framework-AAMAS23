@@ -25,25 +25,29 @@
 
 // &  MinY > 2
 
-+!start(F): f(F,X,Y,MinX, MinY) & f(F2,X2,Y2,MinX2, MinY2) & mlAlert(_,_,P,D) & F > F2 & X < 6 & X >= 0 & not Y == Y2 & not X == X2 & block(Nf, M) & Nf < M
-            & Y > -2.5 & Y < 2.5 & Y2 < 2.5 & Y2 > -2.5 & (Y - Y2) < -0.1 &(Y - Y2) > -2.0
++!start(F): f(F,X,Y,MinX, MinY) & f(F2,X2,Y2,MinX2, MinY2) & mlAlert(_,_,P,D) & F > F2 & ml_control(F,_,St,_,_,_) & St < 0.1 & St > -0.1
+            & Y > -2.5 & Y < 2.5 & Y2 < 2.5 & Y2 > -2.5 & (Y - Y2) < -0.1 &(Y - Y2) > -2.0 & X < 6 & X >= 0 & not Y == Y2 & not X == X2
+            & block(Nf, M) & Nf < M
 		<-   control(7, 0.0, 0.0, 1.0, false, false, 5); // hard break
 			.print("ML Alert [Far Crossing (R)] Collision Slow: X : ", X, " Y: ", Y, " X2: ", X2, " Y2: ", Y2, " MinY: ", MinY , " MinY2: ", MinY2, " MinX: ", MinX , " MinX2: ", MinX2, " D: ",D, " F: ", F, " F2: ", F2 ).
 
-+!start(F): f(F,X,Y,MinX, MinY) & f(F2,X2,Y2,MinX2, MinY2) & mlAlert(_,_,P,D) & F > F2 & X < 6 & X >= 0 & not Y == Y2 & not X == X2 & block(Nf, M) & Nf < M
-            & Y > -2.5 & Y < 2.5 & Y2 < 2.5 & Y2 > -2.5 & (Y - Y2)  > 0.1 & (Y - Y2)  < 2.0
++!start(F): f(F,X,Y,MinX, MinY) & f(F2,X2,Y2,MinX2, MinY2) & mlAlert(_,_,P,D) & F > F2  & ml_control(F,_,St,_,_,_) & St < 0.1 & St > -0.1
+            & Y > -2.5 & Y < 2.5 & Y2 < 2.5 & Y2 > -2.5 & (Y - Y2)  > 0.1 & (Y - Y2)  < 2.0 & X < 6 & X >= 0 & not Y == Y2 & not X == X2
+            & block(Nf, M) & Nf < M
 		<-   control(7, 0.0, 0.0, 1.0, false, false, 5); // hard break
 			.print("ML Alert [Far Crossing (L)] Collision Slow: X : ", X, " Y: ", Y, " X2: ", X2, " Y2: ", Y2, " MinY: ", MinY , " MinY2: ", MinY2, " MinX: ", MinX , " MinX2: ", MinX2, " D: ",D, " F: ", F, " F2: ", F2 ).
 
 
 
-+!start(F): f(F,X,Y,MinX, MinY) & f(F2,X2,Y2,MinX2, MinY2) &  (F - F2) <= 4 & X < 4.0 & X >= 0 & not Y == Y2 & not X == X2 & info(F,Sp) & Sp > 2
-            & Y > -2.5 & Y < 2.5 & Y2 < 2.5 & Y2 > -2.5 & (Y - Y2) < -0.1 & (Y - Y2) > -2.0  & block(Nf, M) & Nf < M
++!start(F): f(F,X,Y,MinX, MinY) & f(F2,X2,Y2,MinX2, MinY2) &  (F - F2) <= 4 & ml_control(F,_,St,_,_,_) & St < 0.1 & St > -0.1
+            & Y > -2.5 & Y < 2.5 & Y2 < 2.5 & Y2 > -2.5 & (Y - Y2) < -0.1 & (Y - Y2) > -2.0 & X < 3.5 & X >= 0 & not Y == Y2 & not X == X2
+            & block(Nf, M) & Nf < M
 		<-   control(7, 0.0, 0.0, 1.0, false, false, 10); // hard break
 			.print("Waiting they move R-L: X : ", X, " Y: ", Y, " X2: ", X2, " Y2: ", Y2, " MinY: ", MinY , " MinY2: ", MinY2, " MinX: ", MinX , " MinX2: ", MinX2, " F: ", F, " F2: ", F2, " Nf: ", Nf, " M: ", M).
 
-+!start(F): f(F,X,Y,MinX, MinY) & f(F2,X2,Y2,MinX2, MinY2) & (F - F2) <= 4 & X < 4.0 & X > 0 & not Y == Y2 & not X == X2 & info(F,Sp) & Sp > 2
-            & Y > -2.5 & Y < 2.5 & Y2 < 2.5 & Y2 > -2.5 & (Y - Y2)  > 0.1 & (Y - Y2)  < 2.0 & block(Nf, M) & Nf < M
++!start(F): f(F,X,Y,MinX, MinY) & f(F2,X2,Y2,MinX2, MinY2) & (F - F2) <= 4  & ml_control(F,_,St,_,_,_) & St < 0.1 & St > -0.1
+            & Y > -2.5 & Y < 2.5 & Y2 < 2.5 & Y2 > -2.5 & (Y - Y2)  > 0.1 & (Y - Y2)  < 2.0 & X < 3.5 & X > 0 & not Y == Y2 & not X == X2
+            & block(Nf, M) & Nf < M
 		<-   control(7, 0.0, 0.0, 1.0, false, false, 10); // hard break
 			.print("Waiting they move L-R: X : ", X, " Y: ", Y, " X2: ", X2, " Y2: ", Y2, " MinY: ", MinY , " MinY2: ", MinY2, " MinX: ", MinX , " MinX2: ", MinX2, " F: ", F, " F2: ", F2, " Nf: ", Nf, " M: ", M).
 
