@@ -135,7 +135,7 @@ class Orchestrator(AutonomousAgent):
                 senaria_name=self.senaria_name_log,
             )
         accidentMark = 0
-        accidentMark, probability, dangerous = self.accidentDetector.run()
+        accidentMark, probability, dangerous, debuge = self.accidentDetector.run()
 
 
         # print(len)
@@ -175,17 +175,27 @@ class Orchestrator(AutonomousAgent):
         self.right_objects_detection = self.minimum_obstacle_distance(direction="R")
         self.traffic_light_detection = self.check_traffic_lights()
 
+        # print(f"dis_l : {self.Left_objects_detection}")
+        # print(f"dis_b: {self.back_objects_detection}")
+        # print(f"dis_sb: {self.sBack_objects_detection}")
         if accidentMark == 1:
             self.mlAlert = (accidentMark, probability, dangerous)
-            print(f"dis_f: {self.front_objects_detection}")
-            print(f"dis_sf: {self.SFront_objects_detection}")
-            print(f"dis_r : {self.right_objects_detection}")
-            print(f"dis_l : {self.Left_objects_detection}")
-            print(f"dis_b: {self.back_objects_detection}")
-            print(f"dis_sb: {self.sBack_objects_detection}")
+            if debuge == 1 :
+                print(f"mlAlert: {probability}, {dangerous}")
+                print(f"dis_f: {self.front_objects_detection}")
+                print(f"dis_sf: {self.SFront_objects_detection}")
+                print(f"dis_r : {self.right_objects_detection}")
+                print(f"dis_l : {self.Left_objects_detection}")
+                print(f"dis_b: {self.back_objects_detection}")
+                print(f"dis_sb: {self.sBack_objects_detection}")
         else :
             self.mlAlert = -1
 
+        # print(f"mlAlert: {probability}, {dangerous}, {debuge}")
+        # print(f"dis_f: {self.front_objects_detection}")
+        # print(f"dis_sf: {self.SFront_objects_detection}")
+        # print(f"dis_r : {self.right_objects_detection}")
+        # print(f"dis_l : {self.Left_objects_detection}")
 
         if self.traffic_light_detection != -1 and self.traffic_light_detection[0] == "A":
             self.ahead_traffic_light_distance = self.traffic_light_detection[4]
@@ -276,19 +286,22 @@ class Orchestrator(AutonomousAgent):
             return "R"
         return ""
 
-    def minimum_obstacle_distance(self , direction = "F" ):
+
+    def minimum_obstacle_distance(self , direction = "F"):
         ## Filter lidar points by direction:
         ## F: front (45 degree) | SF: front (straight)
         ## B: Back (45 degree)  | SB: Back (straight)
         ## L: Left (45 degree)  | R: Right (45 degree)
-
+        ## X_offset : 2.5 Y_ofset : 1.1
         x_offset = self.ego_car_diminsions.x
+        # y_offset = self.ego_car_diminsions.y
+        # print(x_offset,y_offset)
         ## filter the lidars data
         if direction == "SF":
             final_df = self.lidar_df[self.lidar_df.x > x_offset]
             final_df = final_df[abs(final_df.y) < 1.5]
         elif direction == "SB":
-
+            x_offset = self.ego_car_diminsions.x
             final_df = self.lidar_df[self.lidar_df.x < (0-x_offset)]
             final_df = final_df[abs(final_df.y) < 1.5] ## lane standard width is 3.65m
 
@@ -312,14 +325,11 @@ class Orchestrator(AutonomousAgent):
         if len(final_df) > 0:
             # ds = [distance(x,y) for x,y in final_df[["x","y"]].values]
             min_x = min(final_df.x.abs())
-            p1_x = min_x - x_offset
-            p1_y = final_df[final_df.x.abs() == min_x].y.values[0]
+            y = final_df[final_df.x.abs() == min_x].y.values[0]
             min_y = min(final_df.y.abs())
-            p2_y = min_y
-            p2_x = final_df[final_df.y.abs() == min_y].x.values[0]
-            p2_x = (p2_x - x_offset) if p2_x >= x_offset else (p2_x + x_offset)
-
-            return (p2_x, p1_y ,p1_x , p2_y) # min(final_df.y.abs()), min(ds))
+            x = final_df[final_df.y.abs() == min_y].x.values[0]
+            # x = (x - x_offset) if x >= x_offset else (x + x_offset)
+            return (x, y ,min_x - x_offset , min_y) # min(final_df.y.abs()), min(ds))
         return -1
 
     def check_traffic_lights(self):

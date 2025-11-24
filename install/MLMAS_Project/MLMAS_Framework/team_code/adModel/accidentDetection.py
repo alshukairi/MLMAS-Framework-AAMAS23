@@ -36,6 +36,8 @@ class accidentDetection:
         self.senaria_name = senaria_name
         self.bias_power = bias_power
         self.predict_id = 0
+        self.predict_pro = 0
+        self.predict_dan = 0
         # world = CarlaDataProvider.get_world()
 
     def reset_collected_data(self):
@@ -64,10 +66,10 @@ class accidentDetection:
         ]
         type_to_idx = {label: idx + 1 for idx, label in enumerate(type_order)}
         type_encoded = type_to_idx[vehicle_type]
-
         frame_id = self.world.get_snapshot().frame
 
         # 相对位置和角度
+
         dst_x = location.x
         dst_y = location.y
         src_x = ego_location.x
@@ -340,7 +342,7 @@ class accidentDetection:
 
         colle = self.collect_one_frame(self.collected_data, self.fixed_neighbors, self.fixed_fake_neighbors)
         if colle == 0 :
-            return 0, 0, 0
+            return 0, 0, 0, 0
         record_frame_span = 0
         if self.record_collected_data:
             self.collect_one_frame(self.record_collected_data, self.record_fixed_neighbors, self.record_fixed_fake_neighbors)
@@ -349,7 +351,7 @@ class accidentDetection:
 
         # 检查 frame_id 的跨度是否达到目标帧数
         if len(self.collected_data) < 2:
-            return 0, 0, 0
+            return 0, 0, 0, 0
 
         ego_frame_ids = [frame[0]["frame_id"] for frame in self.collected_data]
         frame_span = ego_frame_ids[-1] - ego_frame_ids[0]
@@ -369,7 +371,7 @@ class accidentDetection:
 
 
         if frame_span != self.target_frames_start:
-            return 0, 0, 0
+            return 0, 0, 0, 0
 
         ego_id = self.ego.id
 
@@ -379,15 +381,15 @@ class accidentDetection:
             # print(len(data_df))
             # print(self.size_completeness)
             self.reset_collected_data()
-            return 0, 0, 0
+            return 0, 0, 0, 0
 
-        src_edg_df = data_df[data_df['agent_id'] == ego_id]
-
-        theo = int(len(src_edg_df) / 2)
-        first_three = src_edg_df[["vx", "vy"]].head(theo)
-        if np.all(abs(first_three.values) < 1e-5):
-            self.reset_collected_data()
-            return 0, 0, 0
+        # src_edg_df = data_df[data_df['agent_id'] == ego_id]
+        #
+        # theo = int(len(src_edg_df) / 2)
+        # first_three = src_edg_df[["vx", "vy"]].head(theo)
+        # if np.all(abs(first_three.values) < 1e-5):
+        #     self.reset_collected_data()
+        #     return 0, 0, 0, 0
 
         # fake_id = list(self.fixed_fake_neighbors.keys())[0]
         # constraint_df = data_df[
@@ -475,6 +477,7 @@ class accidentDetection:
         accident = 0
         probability = 0
         dangerous = 0
+        debuge = 0
         # print("slow Down : ")
         # print(
         #     f"Scenario: {self.scenario_id},"
@@ -484,18 +487,28 @@ class accidentDetection:
         #     f"Src: {max_score_row['src_agent_id']}, "
         # )
         if max_score_row["score"] >=  0.6:
-            print("slow Down : ")
-            print(
-                f"{scenario_dir},"
-                f"Collision Max score: {max_score_row['score']}, "
-                f"Src: {max_score_row['src_agent_id']}, "
-                f"Dst: {max_score_row['dst_agent_id']}, "
-                f"ts: {max_score_row['ts']}, "
-                # f"Frame ID range: [{max_score_row['frame_start']}, {max_score_row['frame_end']}]"
-            )
+            if (node_features_df["type_encoded"] == 6).any():
+                debuge = 1
+                print("slow Down : ")
+                print(
+                    f"{scenario_dir},"
+                    f"Collision Max score: {max_score_row['score']}, "
+                    f"Src: {max_score_row['src_agent_id']}, "
+                    f"Dst: {max_score_row['dst_agent_id']}, "
+                    f"ts: {max_score_row['ts']}, "
+                    # f"Frame ID range: [{max_score_row['frame_start']}, {max_score_row['frame_end']}]"
+                )
             accident = 1
-            probability = max_score_row["score"]
+
+            if self.predict_dan > 5:
+                self.predict_dan = 0
             if self.predict_id == max_score_row['dst_agent_id']:
-                dangerous = 1
+                self.predict_dan += 1
+                dangerous = self.predict_dan
+                probability = max_score_row["score"] - self.predict_pro
+            else :
+                self.predict_dan = 0
+
+            self.predict_pro = max_score_row["score"]
             self.predict_id = max_score_row['dst_agent_id']
-        return accident, probability, dangerous
+        return accident, probability, dangerous , debuge

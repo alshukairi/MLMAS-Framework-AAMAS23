@@ -173,7 +173,7 @@ class JsonProcessing:
 
     def __init__(self, ml_mas_agent):
         self.ml_mas_agent = ml_mas_agent
-        self.metrics_stats = [0,0,0,0,0,0,0]
+        self.metrics_stats = [0,0,0,0,0,0,0,0,0]
     def apply_control(self, jsn):
         cnt, repeat = self.JSON_unpack_control(jsn)
         if cnt == -1 or cnt != None:
@@ -297,7 +297,7 @@ class JsonProcessing:
         if self.ml_mas_agent.mlAlert != -1:
             final_json["mlAlert"] = {
                 "state": self.ml_mas_agent.mlAlert[0],
-                "p": str(round(self.ml_mas_agent.mlAlert[1], 3)),
+                "p": str(round(self.ml_mas_agent.mlAlert[1], 6)),
                 "d": self.ml_mas_agent.mlAlert[2]
             }
 

@@ -83,6 +83,16 @@ public class BeliefsHandler extends Thread {
 					this.env.addPercept("carla_control", Literal.parseLiteral("ml_control(" + current_frame + ","
 							+ throttle + "," + steer + "," + brake + "," + hand_brake + "," + reverse + ")"));
 				}
+				if (data_jsn.containsKey("mlAlert")) {
+
+                    String state = data_jsn.getJsonObject("mlAlert").get("state").toString();
+                    String p = data_jsn.getJsonObject("mlAlert").get("p").toString().replace("\"", "");
+                    String d = data_jsn.getJsonObject("mlAlert").get("d").toString();
+
+                    this.env.addPercept("carla_control", Literal.parseLiteral("mlAlert(" + current_frame + "," + state + "," + p + "," + d + ")"));
+
+
+                 }
 
 				if (data_jsn.containsKey("f"))
 					add_obstacle_percept(data_jsn, "f", current_frame);
@@ -111,16 +121,7 @@ public class BeliefsHandler extends Thread {
 
 				}
 
-                if (data_jsn.containsKey("mlAlert")) {
 
-                    String state = data_jsn.getJsonObject("mlAlert").get("state").toString();
-                    String p = data_jsn.getJsonObject("mlAlert").get("p").toString().replace("\"", "");
-                    String d = data_jsn.getJsonObject("mlAlert").get("d").toString();
-
-                    this.env.addPercept("carla_control", Literal.parseLiteral("mlAlert(" + current_frame + "," + state + "," + p + "," + d + ")"));
-
-
-                        }
 
 
  				removePercept(current_frame);
