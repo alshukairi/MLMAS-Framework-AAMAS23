@@ -239,7 +239,9 @@ class JsonProcessing:
     def JSON_pack_sensors(self):
         final_json = json.loads("{}")
         final_json["info"] = { "frame": self.ml_mas_agent.main_info[0],
-                                "speed": self.ml_mas_agent.main_info[1]
+                               "speed": self.ml_mas_agent.main_info[1],
+                               "sFra": self.ml_mas_agent.main_info[2],
+                               "sDis": self.ml_mas_agent.main_info[3],
                              }
         final_json["ml_control"] = {   "throttle": str(round(self.ml_mas_agent.ml_control.throttle,3)),
                                         "steer": str(round(self.ml_mas_agent.ml_control.steer,3)),

@@ -23,39 +23,64 @@
 
 
 
-// &  MinY > 2
+// Lane = 3.65
+// self._vehicle.bounding_box.extent.x = 2.4508416652679443
+// car.length = 2.45 * 2 = 4.9
+// self._vehicle.bounding_box.extent.y = 1.0641621351242065
+// car.wide = 1.06 * 2 = 2.12
+// diag_angle = math.degrees(math.atan2(1.0641621351242065,2.4508416652679443)) = 23.3
+// side_angle = 180 - diag_angle = 156.7
+// (3.65 - 2.12) / 2) / adjacent = tan(23.3)
+// adjacent = 1.78 , X < 1.78 + 2.45 = 4.23 < 4.3
+// Y < (3.65 - 2.12) / 2) + 1.06 = 1.825 < 2
 
-+!start(F): f(F,X,Y,MinX, MinY) & f(F2,X2,Y2,MinX2, MinY2) & mlAlert(_,_,P,D) & F > F2 & ml_control(F,_,St,_,_,_) & St < 0.1 & St > -0.1
-            & Y > -2.5 & Y < 2.5 & Y2 < 2.5 & Y2 > -2.5 & (Y - Y2) < -0.1 &(Y - Y2) > -2.0 & X < 6 & X >= 0 & not Y == Y2 & not X == X2
+
+
+
++!start(F): f(F,X,Y,MinX, MinY) & f(F2,X2,Y2,MinX2, MinY2) & mlAlert(_,_,P,D) & F > F2 & ml_control(F,_,St,_,_,_) & St < 0.1 & St > -0.1 & info(F,_, FS, DS)
+            & (Y - Y2) > 0.1  & X < 6.5 & not Y == Y2 & not X == X2
             & block(Nf, M) & Nf < M
-		<-   control(7, 0.0, 0.0, 1.0, false, false, 5); // hard break
-			.print("ML Alert [Far Crossing (R)] Collision Slow: X : ", X, " Y: ", Y, " X2: ", X2, " Y2: ", Y2, " MinY: ", MinY , " MinY2: ", MinY2, " MinX: ", MinX , " MinX2: ", MinX2, " D: ",D, " F: ", F, " F2: ", F2 ).
+		<-   control(7, 0.0, 0.0, 1.0, false, false, FS*1.5); // hard break
+			.print("ML Alert Crossing (R) Slow:", " (", X, " , ", Y, ")" ," (", X2, " , ", Y2, ") ", " (", DS, " , ", FS, ")" ).
 
-+!start(F): f(F,X,Y,MinX, MinY) & f(F2,X2,Y2,MinX2, MinY2) & mlAlert(_,_,P,D) & F > F2  & ml_control(F,_,St,_,_,_) & St < 0.1 & St > -0.1
-            & Y > -2.5 & Y < 2.5 & Y2 < 2.5 & Y2 > -2.5 & (Y - Y2)  > 0.1 & (Y - Y2)  < 2.0 & X < 6 & X >= 0 & not Y == Y2 & not X == X2
++!start(F): f(F,X,Y,MinX, MinY) & f(F2,X2,Y2,MinX2, MinY2) & mlAlert(_,_,P,D) & F > F2  & ml_control(F,_,St,_,_,_) & St < 0.1 & St > -0.1 & info(F,_, FS, DS)
+            & (Y - Y2)  < -0.1  & X < 6.5 & not Y == Y2 & not X == X2
             & block(Nf, M) & Nf < M
-		<-   control(7, 0.0, 0.0, 1.0, false, false, 5); // hard break
-			.print("ML Alert [Far Crossing (L)] Collision Slow: X : ", X, " Y: ", Y, " X2: ", X2, " Y2: ", Y2, " MinY: ", MinY , " MinY2: ", MinY2, " MinX: ", MinX , " MinX2: ", MinX2, " D: ",D, " F: ", F, " F2: ", F2 ).
+		<-   control(7, 0.0, 0.0, 1.0, false, false, FS*1.5); // hard break
+			.print("ML Alert Crossing (L) Slow:", " (", X, " , ", Y, ")" ," (", X2, " , ", Y2, ") ", " (", DS, " , ", FS, ")" ).
 
 
-
-+!start(F): f(F,X,Y,MinX, MinY) & f(F2,X2,Y2,MinX2, MinY2) &  (F - F2) <= 4 & ml_control(F,_,St,_,_,_) & St < 0.1 & St > -0.1
-            & Y > -2.5 & Y < 2.5 & Y2 < 2.5 & Y2 > -2.5 & (Y - Y2) < -0.1 & (Y - Y2) > -2.0 & X < 3.5 & X >= 0 & not Y == Y2 & not X == X2
+// & Y > -2.5 & Y < 2.5 & Y2 < 2.5 & Y2 > -2.5 &
++!start(F): f(F,X,Y,MinX, MinY) & f(F2,X2,Y2,MinX2, MinY2) &  F > F2 & ml_control(F,_,St,_,_,_) & St < 0.1 & St > -0.1 & info(F,_, FS, DS)
+            & (Y - Y2) > 0.1  & X < 4.8 & not Y == Y2 & not X == X2
             & block(Nf, M) & Nf < M
-		<-   control(7, 0.0, 0.0, 1.0, false, false, 10); // hard break
-			.print("Waiting they move R-L: X : ", X, " Y: ", Y, " X2: ", X2, " Y2: ", Y2, " MinY: ", MinY , " MinY2: ", MinY2, " MinX: ", MinX , " MinX2: ", MinX2, " F: ", F, " F2: ", F2, " Nf: ", Nf, " M: ", M).
-
-+!start(F): f(F,X,Y,MinX, MinY) & f(F2,X2,Y2,MinX2, MinY2) & (F - F2) <= 4  & ml_control(F,_,St,_,_,_) & St < 0.1 & St > -0.1
-            & Y > -2.5 & Y < 2.5 & Y2 < 2.5 & Y2 > -2.5 & (Y - Y2)  > 0.1 & (Y - Y2)  < 2.0 & X < 3.5 & X > 0 & not Y == Y2 & not X == X2
+		<-   control(7, 0.0, 0.0, 1.0, false, false, FS * 1.5); // hard break
+			.print("Warning R-L 1:", " (", X, " , ", Y, ")" ," (", X2, " , ", Y2, ") ", " (", DS*1.5, " , ", FS, ")" ).
+// & Y > -2.5 & Y < 2.5 & Y2 < 2.5 & Y2 > -2.5 &
++!start(F): f(F,X,Y,MinX, MinY) & f(F2,X2,Y2,MinX2, MinY2) & (F - F2) <= 4  & ml_control(F,_,St,_,_,_) & St < 0.1 & St > -0.1 & info(F,_, FS, DS)
+            & (Y - Y2)  < -0.1  & X < 4.8 & not Y == Y2 & not X == X2
             & block(Nf, M) & Nf < M
-		<-   control(7, 0.0, 0.0, 1.0, false, false, 10); // hard break
-			.print("Waiting they move L-R: X : ", X, " Y: ", Y, " X2: ", X2, " Y2: ", Y2, " MinY: ", MinY , " MinY2: ", MinY2, " MinX: ", MinX , " MinX2: ", MinX2, " F: ", F, " F2: ", F2, " Nf: ", Nf, " M: ", M).
+		<-   control(7, 0.0, 0.0, 1.0, false, false, FS * 1.5); // hard break
+			.print("Warning L-R 1:", " (", X, " , ", Y, ")" ," (", X2, " , ", Y2, ") ", " (", DS*1.5, " , ", FS, ")" ).
 
+// & Y > -2.5 & Y < 2.5 & Y2 < 2.5 & Y2 > -2.5 &
++!start(F): f(F,X,Y,MinX, MinY) & f(F2,X2,Y2,MinX2, MinY2) &  F > F2 & ml_control(F,_,St,_,_,_) & St < 0.1 & St > -0.1 & info(F,_, FS, DS) & DS > 4.3
+            & (Y - Y2) > 0.1 & (Y - Y2) < 3.65 & math.abs(Y) < 3.8 & X < DS  & not Y == Y2 & not X == X2
+            & block(Nf, M) & Nf < M
+		<-   control(7, 0.0, 0.0, 1.0, false, false, FS * 1.5); // hard break
+			.print("Warning R-L 2:", " (", X, " , ", Y, ")" ," (", X2, " , ", Y2, ") ", " (", DS*1.5, " , ", FS, ")" ).
 
+// & Y > -2.5 & Y < 2.5 & Y2 < 2.5 & Y2 > -2.5 &
++!start(F): f(F,X,Y,MinX, MinY) & f(F2,X2,Y2,MinX2, MinY2) & (F - F2) <= 4  & ml_control(F,_,St,_,_,_) & St < 0.1 & St > -0.1 & info(F,_, FS, DS) & DS > 4.3
+            & (Y - Y2)  < -0.1 & (Y - Y2)  > -3.65 & math.abs(Y) < 3.8 & X < DS  & not Y == Y2 & not X == X2
+            & block(Nf, M) & Nf < M
+		<-   control(7, 0.0, 0.0, 1.0, false, false, FS * 1.5); // hard break
+			.print("Warning L-R 2: X :", " (", X, " , ", Y, ")" ," (", X2, " , ", Y2, ") ", " (", DS*1.5, " , ", FS, ")" ).
 
-+!start(F):  mlAlert(F,_,P,D) & f(F,X,Y,XinX, MinY) & X < 3.0 & X >= 0 & D >= 2 & block(Nf, M) & Nf < M & info(F,Sp) & Sp > 3
-		 <- control(7, 0.0, 0.0, 1.0, false, false, 10 ); // hard break
-		    .print("S danger: "," F ", F, " d: ", D, " P ", P, " X: ", X, " Y: ", Y, " XinX: " , XinX, " MY: ", MinY, " Nf: ", Nf, " M: ", M).
++!start(F):  mlAlert(F,_,P,D) & f(F,X,Y,XinX, MinY) & X < 3.0 & X >= 0 & D >= 2 & block(Nf, M) & Nf < M & info(F,Sp, FS, DS) & Sp > 3
+             & ml_control(F,_,St,_,_,_) & St < 0.1 & St > -0.1
+		 <- control(7, 0.0, 0.0, 1.0, false, false, FS ); // hard break
+		    .print("S danger:", " (", X, " , ", Y, ")" , " (", DS, " , ", FS, ")" ).
 
 //+!start(F): f(F,X,Y,MinX, MinY) & f(F2,X2,Y2,MinX2, MinY2) &  (F - F2) <= 2 & X <  7 & X >= 0
 //            & Y > -2.6 & Y < 2.6 & Y2 < 2.4 & Y2 > -2.4 & (Y - Y2) < -0.1 & (Y - Y2) > -2.0
@@ -67,26 +92,26 @@
 
 
 
-+!start(F): mlAlert(F,S,P,D) & D == 0 & info(F,Sp) & Sp > 6
++!start(F): mlAlert(F,S,P,D) & D == 0 & info(F,Sp, FS, DS) & Sp > 6 & ml_control(F,_,St,_,_,_) & St < 0.1 & St > -0.1
             & not f(F,_,_,_,_) & not sF(F,_,_,_,_)
             & not b(F,_,_,_,_) & not sB(F,_,_,_,_)
             & not l(F,_,_,_,_) & not r(F,_,_,_,_)
-		<-  control(7, 0.0, 0.0, 0.2, false, false, 2). // Slow Down
-		    .print("Slow : "," F ", F, " s: ", S, " Sp: ", Sp, " d: ", D, " P ", P).
+		<-  control(7, 0.0, 0.0, 0.2, false, false, FS). // Slow Down
+		    .print("Slow :", " (", DS, " , ", FS, ")" ).
 
-+!start(F): mlAlert(F,S,P,D) & D == 1 &  P <= 0 & info(F,Sp)  & Sp > 3
++!start(F): mlAlert(F,S,P,D) & D == 1 &  P <= 0 & info(F,Sp, FS, DS)  & Sp > 3 & ml_control(F,_,St,_,_,_) & St < 0.1 & St > -0.1
             & not f(F,_,_,_,_) & not sF(F,_,_,_,_)
             & not b(F,_,_,_,_) & not sB(F,_,_,_,_)
             & not l(F,_,_,_,_) & not r(F,_,_,_,_)
-		<-  control(7, 0.0, 0.0, 0.3, false, false, 2); // Slow Down
-		    .print("P Lower"," F ", F, " s: ", S, " Sp: ", Sp, " d: ", D, " P1 ", P).
+		<-  control(7, 0.0, 0.0, 0.3, false, false, FS); // Slow Down
+		    .print("P Lower:", " (", DS, " , ", FS, ")" ).
 
-+!start(F): mlAlert(F,S,P,D)  & D >= 1 & P > 0  & info(F,Sp) & Sp > 3
++!start(F): mlAlert(F,S,P,D)  & D >= 1 & P > 0  & info(F,Sp, FS, DS) & Sp > 3 & ml_control(F,_,St,_,_,_) & St < 0.1 & St > -0.1
             & not f(F,_,_,_,_) & not sF(F,_,_,_,_)
             & not b(F,_,_,_,_) & not sB(F,_,_,_,_)
             & not l(F,_,_,_,_) & not r(F,_,_,_,_)
-		<-  control(7, 0.0, 0.0, 0.5, false, false, 5); // Hard Break
-		    .print("P higher: "," F ", F, " Sp: ", Sp, " d: ", D, " P1 ", P).
+		<-  control(7, 0.0, 0.0, 0.1 * (D + 1), false, false, FS); // Hard Break
+		    .print("P higher:", " (", DS, " , ", FS, " , ", D, ")" ).
 
 
 
@@ -94,17 +119,17 @@
  // That are intend or try to cross a road or they are already
  // in front of the car.
 
-+!start(F): f(F,X,_,_, MinY) & MinY < 2.0 & X < 4.5
-			& info(F,Sp) & Sp > 0.5 & block(Nf, M) & Nf < M
-		<-   control(2, 0.0, 0.0, 1.0, false, false, (Sp*3)); // hard break
-             .print("===Avoid Road [close] Collision===: ", Sp).
+//+!start(F): f(F,X,_,_, MinY) & MinY < 2.0 & X < 4.5
+//			& info(F,Sp, FS, DS) & Sp > 0.5 & block(Nf, M) & Nf < M
+//		<-   control(2, 0.0, 0.0, 1.0, false, false, (Sp*3)); // hard break
+//             .print("===Avoid Road [close] Collision===: ", Sp).
 
  // 2. A plan to avoid [Far obstacles] collision
  // That are moving toward the car from the [Right side].
 //+!start(F): f(F,X,Y,_, MinY) & f(F2,_,Y2,_, MinY2) & (F-F2) <= 2
 //			& Y > 0 & Y2 > 0 &  MinY > 2.0 & X < 6 & Y < 4
 //			& (MinY2 - MinY) > 0.15 & ml_control(F,_,St,_,_,_) & St < 0.1
-//			& info(F,Sp)
+//			& info(F,Sp, FS, DS)
 //		<-   control(1, 0.0, 0.0, 1.0, false, false, (Sp*3)); // hard break
 //			.print("===Avoid Road [Far Crossing (R)] Collision===: X : ", X, " Y: ", Y, " F: ", F, " F2: ", F2).
 
@@ -113,7 +138,7 @@
 //+!start(F): f(F,X,Y,_, MinY) & f(F2,_,Y2,_, MinY2) & (F-F2) <= 2
 //			& Y < 0 & Y2 < 0 &  MinY > 2.0 & X < 6 & Y > -4
 //			& (MinY2 - MinY) > 0.15  & ml_control(F,_,St,_,_,_) & St > - 0.1
-//			& info(F,Sp)
+//			& info(F,Sp, FS, DS)
 //		<-   control(1, 0.0, 0.0, 1.0, false, false, (Sp*3)); // hard break
 //			.print("===Avoid Road [Far Crossing (L)] Collision===: X X : ", X, " Y: ", Y, " F: ", F, " F2: ", F2).
 
@@ -121,7 +146,7 @@
  // That are moving or stopping in front of the car
  // in an early stage to be able to stop in the right time.
 +!start(F):  sF(F,_,_,MinX,_) & MinX < 4
-			& info(F,Sp)  & Sp > 0.01 & ml_control(F,_,St,_,_,_)
+			& info(F,Sp, FS, DS)  & Sp > 0.01 & ml_control(F,_,St,_,_,_)
 			& math.abs(St) < 0.05 & sF(F2,_,_,MinX2,_)
 			& (F-F2) <= 2 & (MinX2 - MinX) > 0.1
 		<-   control(0, 0.0, 0.0, 1.0, false, false, (Sp)); // hard break
@@ -131,40 +156,40 @@
  //    the traffic light box, till the road vision and obstacles
  //     become more clear.
 +!start(F): traffic_light(_,_,_,_,_,_,1) & not traffic_light(F,_,_,_,_,_,1)
-		  & info(F,S) & S > 4 & ml_control(F,_,St,_,_,_)
+		  & info(F,Sp, FS, DS) & S > 4 & ml_control(F,_,St,_,_,_)
 		<-   control(6, 0.0, St, 0.4, false, false, 5). // Slow Down
 			.print("=== Slow down After Traffic Light Box===: ", F).
 
  // 6. A plan to predict a fast moving car from the [back].
  //    and to try to avoid it by moving the car slightly, while it
  //    is in the stop state, and no front obstacle available.
-+!start(F): sB(F,_,_,MinX,_) & b(F-1,_,_,MinX2,_) & (MinX2- MinX) > 0.1
++!start(F): sB(F,_,_,MinX,_) & b(F-1,_,_,MinX2,_) & (MinX2- MinX) > 0.1 & not f(F,_,Y,_,_) & Y > -2.5 & Y < 2.5
 		& ml_control(F,_,St,Br,_,_) & not traffic_light(_,"L",_,_,_,_,_)
-		& info(F,S) & S < 1.5 & not sF(F,_,_,_,_)
+		& info(F,Sp, FS, DS) & S < 1.5 & not sF(F,_,_,_,_)
 		 <-  control(3, 1.0, St, 0.0, false, false, 3). // Go Forward
 //			 .print("===Avoid Collision from the [Back]===: ", F).
 
  // 7. A plan to predict a fast moving car from the [back].
  //    and to try to avoid it by moving the car slightly, while it
  //    is in the stop state, and there is front obstacle but far by more than 3m.
-+!start(F): sB(F,_,_,MinX,_) & b(F-1,_,_,MinX2,_) & (MinX2- MinX) > 0.1
++!start(F): sB(F,_,_,MinX,_) & b(F-1,_,_,MinX2,_) & (MinX2- MinX) > 0.1 & not f(F,_,Y,_,_) & Y > -2.5 & Y < 2.5
 		& ml_control(F,_,St,Br,_,_) & not traffic_light(_,"L",_,_,_,_,_)
-		& info(F,S) & S < 1.5 & sF(F,_,_,MinX3,_) & MinX3 > 3
+		& info(F,Sp, FS, DS) & S < 1.5 & sF(F,_,_,MinX3,_) & MinX3 > 3
 		 <-  control(3, 1.0, St, 0.0, false, false, 3). // Go Forward
 //			 .print("===Avoid Collision from the [Back 2]===: ", F).
 
  // 8. A plan to predict a very close car from the [back].
  //    and to try to continue move from it to avoid accident
  //    if there is no front obstacles.
-+!start(F): sB(F,_,_,MinX,_) & MinX < 1.6 & not sF(F,_,_,_,_)
++!start(F): sB(F,_,_,MinX,_) & MinX < 1.6 & not sF(F,_,_,_,_) & not f(F,_,Y,_,_) & Y > -2.5 & Y < 2.5
 		& ml_control(F,_,St,Br,_,_) & not traffic_light(_,"L",_,_,_,_,_)
-		 <-  control(3, 0.8, St, 0.0, false, false, 1). // Go Forward
+		 <-  control(3, 1.0, St, 0.0, false, false, 3). // Go Forward
 //			 .print("===Avoid Collision from the [Back 3]===: ", F).
 
  // 9. A plan to predict a very close car from the [back].
  //    and to try to continue move from it to avoid accident.
  //    if there is front obstacle far more than 1m.
-+!start(F): sB(F,_,_,MinX,_) & MinX < 1.6 & sF(F,_,_,MinX3,_) & MinX3 > 1
++!start(F): sB(F,_,_,MinX,_) & MinX < 1.6 & sF(F,_,_,MinX3,_) & MinX3 > 1 & not f(F,_,Y,_,_) & Y > -2.5 & Y < 2.5
 		& ml_control(F,_,St,Br,_,_) & not traffic_light(_,"L",_,_,_,_,_)
 		 <-  control(3, 0.8, St, 0.0, false, false, 1). // Go Forward
 //			 .print("===Avoid Collision from the [Back 4]===: ", F).
@@ -187,35 +212,35 @@
 
  // 12. A plan to move the car when the traffic light turns green.
 +!start(F): traffic_light(F,"A","G",_,_,_,_) & ml_control(F,_,St,_,_,_)
-		  & not sF(_,_,_,_,_) & info(F,S) & S < 0.5
+		  & not sF(_,_,_,_,_) & info(F,Sp, FS, DS) & S < 0.5
 		<-   control(4, 0.8, St, 0.0, false, false, 3); // Go forward
 			.print("===Traffic Light is Green: Go ===: ", F).
 
  // 13. A plan to move the car when the car is in the traffic light box
 +!start(F): traffic_light(F,"L",_,_,_,_,1)
 		  & not sF(_,_,_,_,_)
-		  & info(F,Sp) & Sp < 0.1 & ml_control(F,_,St,_,_,_)
+		  & info(F,Sp, FS, DS) & Sp < 0.1 & ml_control(F,_,St,_,_,_)
 		<-   control(5, 0.8, St, 0.0, false, false, 1); // Go forward
 			.print("===Move from Traffic Light Box: Go===: ", F).
 
 
 +!start(F): traffic_light(F,"L",_,_,_,_,1)
 		  & not sF(_,_,_,_,_)
-		  & info(F,Sp) & Sp < 0.1 & ml_control(F,_,St,_,_,_)
+		  & info(F,Sp, FS, DS) & Sp < 0.1 & ml_control(F,_,St,_,_,_)
 		<-   control(5, 0.8, St, 0.0, false, false, 1). // Go forward
 
 
 // 14. Detect Blocks and move the car
 
 +!start(F):  ml_control(F,_,St,_,_,_) & math.abs(St) > 0.1
-			 & info(F,Sp) & Sp <= 0 & block(Nf,M) & Nf < M
+			 & info(F,Sp, FS, DS) & Sp <= 0 & block(Nf,M) & Nf < M
 			&  not traffic_light(F,_,"R",_,_,_,_)
 			& f(F,_,_,MinX,_) & MinX < 3
 		  <- no_action;
 		  	-+block(Nf+1, M).
 //		  	.print("===Count Move for Block===: ", Nf).
 
-+!start(F): info(F,Sp) & Sp <= 0 & block(Nf,M) & Nf < M
++!start(F): info(F,Sp, FS, DS) & Sp <= 0 & block(Nf,M) & Nf < M
 			&  not traffic_light(F,_,"R",_,_,_,_)
 			& sF(_,_,_,MinX,_) & MinX < 2
 		  <- no_action;
@@ -223,54 +248,54 @@
 //		  	.print("===Count Move for Block [3]===: ", Nf).
 
 +!start(F): ml_control(F,Th,_,Br,_,_) & Th > 0 & Br < 1
-  			 & info(F,Sp) & Sp <= 0.2 & block(Nf,M) & Nf < M
+  			 & info(F,Sp, FS, DS) & Sp <= 0.2 & block(Nf,M) & Nf < M
   			&  not traffic_light(F,_,"R",_,_,_,_)
   		  <- no_action;
   		  	-+block(Nf+1, M).
 //  		.print("===Count Move for Block [new]===: ", Nf).
 
 +!start(F): block(Nf, M) & Nf >= M
-		   & info(F,Sp) & Sp < 1.0 & not traffic_light(F,_,"R",_,_,_,_)
+		   & info(F,Sp, FS, DS) & Sp < 1.0 & not traffic_light(F,_,"R",_,_,_,_)
 		   & not sF(F,_,_,_,_)
 		  <-  control(5, 0.8, 0.0, 0.0, false, false, 5); // Go forward
 		  .print("=== Move for Block sf[1]===: ", Nf).
 
 +!start(F): block(Nf, M) & Nf >= M & not traffic_light(F,_,"R",_,_,_,_)
-		   & info(F,Sp) & Sp < 1.0 & f(F,_,Y,MinX,_) & MinX > 2 & Y > 0.05
+		   & info(F,Sp, FS, DS) & Sp < 1.0 & f(F,_,Y,MinX,_) & MinX > 2 & Y > 0.05
 		  <-  control(5, 0.8, -1.0, 0.0, false, false, 2). // Go forward and turn
 //		  .print("=== Move for Block sF[2,1]===: ", Nf).
 +!start(F): block(Nf, M) & Nf >= M & not traffic_light(F,_,"R",_,_,_,_)
-		   & info(F,Sp) & Sp < 1.0 & f(F,_,Y,MinX,_) & MinX > 2 & Y <= -0.05
+		   & info(F,Sp, FS, DS) & Sp < 1.0 & f(F,_,Y,MinX,_) & MinX > 2 & Y <= -0.05
 		  <-  control(5, 0.8, 1.0, 0.0, false, false, 2). // Go forward and turn
 //		  .print("=== Move for Block sF[2,2]===: ", Nf).
 
 +!start(F): block(Nf, M) & Nf >= M & not traffic_light(F,_,"R",_,_,_,_)
-		   & info(F,Sp) & Sp < 1.0 & sF(_,_,_,MinX,_) & MinX <= 1.5
+		   & info(F,Sp, FS, DS) & Sp < 1.0 & sF(_,_,_,MinX,_) & MinX <= 1.5
 		   & sB(F,_,_,MinX2,_) & MinX2 > 1.5
 		  <-  control(5, 0.8, -0.2, 0.0, false, true, 2). // reverse
 //		  	  .print("=== [Reverse] for Block sF[5]===: ", Nf).
 
 +!start(F): block(Nf, M) & Nf >= M & not traffic_light(F,_,"R",_,_,_,_)
-		   & info(F,Sp) & Sp < 1.0 & sF(F,_,_,MinX,_) & MinX <= 2
+		   & info(F,Sp, FS, DS) & Sp < 1.0 & sF(F,_,_,MinX,_) & MinX <= 2
 		   & not sB(F,_,_,_,_)
 		  <-  control(5, 0.8, 0.0, 0.0, false, true, 5). // reverse
 //		  	  .print("=== [Reverse] for Block sF[3]===: ", Nf).
 
 +!start(F): block(Nf, M) & Nf >= M & not traffic_light(F,_,"R",_,_,_,_)
-		   & info(F,Sp) & Sp < 1.0 & sF(F,_,_,MinX,_) & MinX <= 2
+		   & info(F,Sp, FS, DS) & Sp < 1.0 & sF(F,_,_,MinX,_) & MinX <= 2
 		   & sB(F,_,_,MinX2,_) & MinX2 > 1.5
 		  <-  control(5, 0.8, 0.0, 0.0, false, true, 2). // reverse
 //		  	  .print("=== [Reverse] for Block sF[4]===: ", Nf).
 
 
 
-+!start(F): info(F,Sp) & Sp < 1.0 & block(Nf, M) & Nf >= M
++!start(F): info(F,Sp, FS, DS) & Sp < 1.0 & block(Nf, M) & Nf >= M
 		  <- no_action.
 //		  	.print("===Count Move for Block [2]===: ", Nf).
 
 
 +!start(F): stopCount(N) & N > 200
-		  & info(F,Sp) & Sp <= 0 & traffic_light(F,_,"G",_,_,_,_)
+		  & info(F,Sp, FS, DS) & Sp <= 0 & traffic_light(F,_,"G",_,_,_,_)
 		  & not sF(F,_,_,_,_)
 		<-   control(4, 1.0, 0.0 , 0.0, false, false, 20);
 			  -+stopCount(0).

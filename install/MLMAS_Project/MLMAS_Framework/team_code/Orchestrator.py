@@ -10,7 +10,7 @@ import os
 import pandas as pd
 import time
 from  adModel.accidentDetection import accidentDetection
-
+import numpy as np
 
 ml_agent = os.getenv('ML_MODEL')
 result_file_path = (os.getenv('CHECKPOINT_ENDPOINT').replace(".json","") + "_jason_metrics.csv")
@@ -158,44 +158,50 @@ class Orchestrator(AutonomousAgent):
             self.ego_car_diminsions = self._vehicle.bounding_box.extent
             # print_log(self.ego_car_diminsions)
         #==============================================
-
-
-        self.main_info = (self.num_frames, round(ego_vehicle_speed,3))
+        # frames = (v / a) × FPS
+        # distance = v² / (2a)
+        sframes  = (ego_vehicle_speed / 8 ) * 20
+        sdistance = (ego_vehicle_speed **2) / 16
+        self.main_info = (self.num_frames, round(ego_vehicle_speed,3), int(sframes), round(sdistance,3))
         self.lidar_df = self.preprocess(lidar)
-        self.front_objects_detection = self.minimum_obstacle_distance()
+        # self.front_objects_detection = self.minimum_obstacle_distance()
+        #
+        # self.back_objects_detection = self.minimum_obstacle_distance(direction="B")
+        #
+        # self.SFront_objects_detection = self.minimum_obstacle_distance(direction="SF")
+        #
+        # self.sBack_objects_detection = self.minimum_obstacle_distance(direction="SB")
+        #
+        # self.Left_objects_detection = self.minimum_obstacle_distance(direction="L")
+        #
+        # self.right_objects_detection = self.minimum_obstacle_distance(direction="R")
+        self.front_objects_detection = self.mlAlert_axis()
+        self.back_objects_detection = self.mlAlert_axis(direction="B")
+        self.SFront_objects_detection = self.mlAlert_axis(direction="SF")
+        self.sBack_objects_detection = self.mlAlert_axis(direction="SB")
+        self.Left_objects_detection = self.mlAlert_axis(direction="L")
+        self.right_objects_detection = self.mlAlert_axis(direction="R")
 
-        self.back_objects_detection = self.minimum_obstacle_distance(direction="B")
-
-        self.SFront_objects_detection = self.minimum_obstacle_distance(direction="SF")
-
-        self.sBack_objects_detection = self.minimum_obstacle_distance(direction="SB")
-
-        self.Left_objects_detection = self.minimum_obstacle_distance(direction="L")
-
-        self.right_objects_detection = self.minimum_obstacle_distance(direction="R")
         self.traffic_light_detection = self.check_traffic_lights()
 
         # print(f"dis_l : {self.Left_objects_detection}")
         # print(f"dis_b: {self.back_objects_detection}")
         # print(f"dis_sb: {self.sBack_objects_detection}")
+
+        # print(f"l: {self.Left_objects_detection}, r: {self.right_objects_detection}")
+        # print("-------")
         if accidentMark == 1:
+
             self.mlAlert = (accidentMark, probability, dangerous)
             if debuge == 1 :
                 print(f"mlAlert: {probability}, {dangerous}")
-                print(f"dis_f: {self.front_objects_detection}")
-                print(f"dis_sf: {self.SFront_objects_detection}")
-                print(f"dis_r : {self.right_objects_detection}")
-                print(f"dis_l : {self.Left_objects_detection}")
-                print(f"dis_b: {self.back_objects_detection}")
-                print(f"dis_sb: {self.sBack_objects_detection}")
+                print(f"f: {self.front_objects_detection},r : {self.right_objects_detection},l : {self.Left_objects_detection}")
+
         else :
             self.mlAlert = -1
 
-        # print(f"mlAlert: {probability}, {dangerous}, {debuge}")
-        # print(f"dis_f: {self.front_objects_detection}")
-        # print(f"dis_sf: {self.SFront_objects_detection}")
-        # print(f"dis_r : {self.right_objects_detection}")
-        # print(f"dis_l : {self.Left_objects_detection}")
+        ## X_offset : 2.5 Y_ofset : 1.1
+
 
         if self.traffic_light_detection != -1 and self.traffic_light_detection[0] == "A":
             self.ahead_traffic_light_distance = self.traffic_light_detection[4]
@@ -205,6 +211,7 @@ class Orchestrator(AutonomousAgent):
                             else carla.VehicleControl(steer=float(0.0),
                                                       throttle=float(0.0),
                                                        brake= float(1.0)) )
+
         jason_cond = self.should_send_to_jason()
         if jason_cond:
             cnt = self.send_sensor_data()
@@ -245,47 +252,222 @@ class Orchestrator(AutonomousAgent):
 
         return cond
 
-    def preprocess(self, lidar_xyzr, min_z = 0.7, max_z = 2,
-     min_x = -5, max_x = 8,  min_y = -4, max_y = 4
-                                , min_intensity = 0.8):
-        intensity = lidar_xyzr[:,-1]
-        x_offset = self.ego_car_diminsions.x/2
-        x = lidar_xyzr[:,0] + self.lidar_dim[0]
-        y = lidar_xyzr[:,1] + self.lidar_dim[1]
-        z = lidar_xyzr[:,2] + self.lidar_dim[2]
-        direction = np.array([self.points_direction(x1,y1) for x1,y1 in  lidar_xyzr[:,0:2]])
+    def preprocess(self, lidar_xyzr,
+                   min_z=0.7, max_z=2,
+                   min_x=-8, max_x=8,
+                   min_y=-5, max_y=5,
+                   min_intensity=0.8):
+        # if self.num_frames % 20 == 0:
+        #     yaw = self._vehicle.get_transform().rotation.yaw
+            # print("=== DEBUG START ===")
+            # print("Vehicle yaw:", yaw)
+            #
+            # # 随便打印一点激光点 (原始 + 旋转后)
+            # for i in range(5):
+            #     xr, yr = lidar_xyzr[i, 0], lidar_xyzr[i, 1]
+            #
+            #     vehicle_yaw = math.radians(yaw)
+            #     cos_y = math.cos(vehicle_yaw)
+            #     sin_y = math.sin(vehicle_yaw)
+            #
+            #     xl = cos_y * xr + sin_y * yr
+            #     yl = -sin_y * xr + cos_y * yr
+            #
+            #     print(f"[{i}] raw=({xr:.2f},{yr:.2f})  local=({xl:.2f},{yl:.2f})  dir={self.points_direction(xl, yl)}")
+            #
+            # print("=== DEBUG END ===")
 
-        final_df = pd.DataFrame({'x':x, 'y': y, 'z': z, #'distance': d,
-                        'direction': direction, 'intensity': intensity})
-        final_df = final_df[final_df.z > min_z]
-        final_df = final_df[final_df.z < max_z]
+        intensity = lidar_xyzr[:, -1]
 
-        final_df = final_df[final_df.x > min_x - x_offset]
-        final_df = final_df[final_df.x < max_x + x_offset]
+        # 1. 获取车辆 yaw
+        yaw = self._vehicle.get_transform().rotation.yaw
+        vehicle_yaw = math.radians(yaw)
+        cos_y = math.cos(vehicle_yaw)
+        sin_y = math.sin(vehicle_yaw)
 
-        final_df = final_df[final_df.y > min_y]
-        final_df = final_df[final_df.y < max_y]
+        # 2. LiDAR → Vehicle coordinate transformation
+        # LiDAR
+
+        z_raw = lidar_xyzr[:, 2]
+
+        xr, yr = lidar_xyzr[:, 0], lidar_xyzr[:, 1]
+        x_rot = cos_y * xr + sin_y * yr
+        y_rot = -sin_y * xr + cos_y * yr
+        # Z 不需要旋转，因为 yaw 不影响高度
+        z_l = z_raw
+        x_l = x_rot + self.lidar_dim[0]
+        y_l = y_rot + self.lidar_dim[1]
+
+
+        # 3. 使用车辆坐标来进行方向判断
+        direction = np.array([self.points_direction(x, y) for x, y in zip(x_l, y_l)])
+
+        # 4. 生成 dataframe（使用车辆坐标）
+        final_df = pd.DataFrame({
+            'x': x_l,
+            'y': y_l,
+            'z': z_l,
+            'direction': direction,
+            'intensity': intensity
+        })
+
+        # 5. 过滤高度
+        final_df = final_df[(final_df.z > min_z) & (final_df.z < max_z)]
+
+        # 6. 过滤 x,y 范围（车辆坐标）
+        final_df = final_df[(final_df.x > min_x) & (final_df.x < max_x)]
+        final_df = final_df[(final_df.y > min_y) & (final_df.y < max_y)]
+
+        # 7. 过滤强度
         final_df = final_df[final_df.intensity > min_intensity]
+
         return final_df
 
-    def points_direction(self, x,y):
-        ## in front of the car with (~ -175 to 5 degree)
-        if x > 0 and (abs(y)/x) <= 9.5: # > 6 degree
+    # def preprocess(self, lidar_xyzr, min_z = 0.7, max_z = 2,
+    #  min_x = -8, max_x = 8,  min_y = -5, max_y = 5
+    #                             , min_intensity = 0.8):
+    #     intensity = lidar_xyzr[:,-1]
+    #     x_offset = self.ego_car_diminsions.x
+    #     x = lidar_xyzr[:,0] + self.lidar_dim[0]
+    #     y = lidar_xyzr[:,1] + self.lidar_dim[1]
+    #     z = lidar_xyzr[:,2] + self.lidar_dim[2]
+    #
+    #     direction = np.array([self.points_direction(x1,y1) for x1,y1 in  lidar_xyzr[:,0:2]])
+    #
+    #     final_df = pd.DataFrame({'x':x, 'y': y, 'z': z, #'distance': d,
+    #                     'direction': direction, 'intensity': intensity})
+    #     final_df = final_df[final_df.z > min_z]
+    #     final_df = final_df[final_df.z < max_z]
+    #
+    #     final_df = final_df[final_df.x > min_x ]
+    #     final_df = final_df[final_df.x < max_x ]
+    #
+    #     final_df = final_df[final_df.y > min_y]
+    #     final_df = final_df[final_df.y < max_y]
+    #     final_df = final_df[final_df.intensity > min_intensity]
+    #     return final_df
+
+    # def points_direction(self, x,y):
+    #     ## in front of the car with (~ -175 to 5 degree)
+    #     if x > 0 and (abs(y)/x) <= 9.5: # > 6 degree
+    #         return "F"
+    #
+    #     ## in back of the car with (-45 to 45 degree)
+    #     if x < 0 and (y/x) >= -1 and (y/x) <= 1:
+    #         return "B"
+    #
+    #     ## in left  of the car with (-45 to 45 degree)
+    #     if y < 0 and (x/y) >= -1 and (x/y) <= 1:
+    #         return "L"
+    #
+    #     ## in right of the car with (-45 to 45 degree)
+    #     if y > 0 and (x/y) >= -1 and (x/y) <= 1:
+    #         return "R"
+    #     return ""
+
+
+    def points_direction(self, x, y):
+        # self._vehicle.bounding_box.extent.x = 2.4508416652679443
+        # self._vehicle.bounding_box.extent.y = 1.0641621351242065
+        # diag_angle = math.degrees(math.atan2(1.0641621351242065,2.4508416652679443)) = 23.3
+        # side_angle = 180 - diag_angle = 156.7
+        angle = math.degrees(math.atan2(y, x))  # -180 to +180
+
+        if -45 <= angle <= 45:
             return "F"
-
-        ## in back of the car with (-45 to 45 degree)
-        if x < 0 and (y/x) >= -1 and (y/x) <= 1:
-            return "B"
-
-        ## in left  of the car with (-45 to 45 degree)
-        if y < 0 and (x/y) >= -1 and (x/y) <= 1:
+        if 45 < angle <= 135:
             return "L"
-
-        ## in right of the car with (-45 to 45 degree)
-        if y > 0 and (x/y) >= -1 and (x/y) <= 1:
+        if angle > 135 or angle < -135:
+            return "B"
+        if -135 <= angle < -45:
             return "R"
+
         return ""
 
+    # def points_direction(self, x, y):
+    #     angle = math.degrees(math.atan2(y, x))  # -180 to 180
+    #
+    #     # CARLA vehicle coordinate:
+    #     # x > 0 front
+    #     # x < 0 back
+    #     # y > 0 right
+    #     # y < 0 left
+    #
+    #     # 车辆前方 ±23°
+    #     if -23.3 <= angle <= 23.3:
+    #         return "F"
+    #
+    #     # 车辆右侧 (+23° → +156°)
+    #     if 23.3 < angle <= 156.7:
+    #         return "R"
+    #
+    #     # 车辆后方 (>|156°|)
+    #     if angle > 156.7 or angle < -156.7:
+    #         return "B"
+    #
+    #     # 车辆左侧 (-156.7° → -23.3°)
+    #     if -156.7 <= angle < -23.3:
+    #         return "L"
+    #
+    #     return ""
+
+    def mlAlert_axis(self, direction="F"):
+
+        df = self.lidar_df
+
+        if direction == "F":  # 前方：x > 0
+            sub = df[df.x > 0]
+            if len(sub) == 0:
+                return -1
+
+            p = sub.loc[sub.x.idxmin()]  # 最靠前
+            # f =  sub.loc[sub.x.idxmax()]
+            # p_distance = math.sqrt(p.x * p.x + p.y * p.y)
+            # f_distance = math.sqrt(f.x * f.x + f.y * f.y)
+            #
+            # print(f"p.x {p.x}, p.y {p.y}, pd {p_distance}, f.x {f.x}, f.y {f.y}, fd{f_distance}")
+
+            return (p.x, p.y, abs(p.x), abs(p.y))
+
+        if direction == "B":  # 后方：x < 0
+            sub = df[df.x < 0]
+            sub = df[df.x < 0]
+            if len(sub) == 0:
+                return -1
+            p = sub.loc[sub.x.idxmax()]  # 最靠后（x 最大负值）
+            return (p.x, p.y, abs(p.x), abs(p.y))
+
+        if direction == "L":  # 左侧：y > 0
+            sub = df[df.y > 0]
+            if len(sub) == 0:
+                return -1
+            p = sub.loc[sub.y.idxmin()]  # y 最小的正值（最靠近车辆左侧）
+            return (p.x, p.y, abs(p.x), abs(p.y))
+
+        if direction == "R":  # 右侧：y < 0
+            sub = df[df.y < 0]
+            if len(sub) == 0:
+                return -1
+            p = sub.loc[sub.y.idxmax()]  # y 最大的负值（最靠近车辆右侧）
+            return (p.x, p.y, abs(p.x), abs(p.y))
+
+        # SF: straight front 又是前方且 |y|<lane_width
+        if direction == "SF":
+            sub = df[(df.x > 0) & (abs(df.y) < 2.12)]
+            if len(sub) == 0:
+                return -1
+            p = sub.loc[sub.x.idxmin()]
+            return (p.x, p.y, abs(p.x), abs(p.y))
+
+        # SB: straight back 又是后方且 |y|<lane_width
+        if direction == "SB":
+            sub = df[(df.x < 0) & (abs(df.y) < 2.12)]
+            if len(sub) == 0:
+                return -1
+            p = sub.loc[sub.x.idxmax()]
+            return (p.x, p.y, abs(p.x), abs(p.y))
+
+        return -1
 
     def minimum_obstacle_distance(self , direction = "F"):
         ## Filter lidar points by direction:

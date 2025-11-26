@@ -139,12 +139,13 @@ class accidentDetection:
 
             # sort by distance
             vehicle_infos.sort(key=lambda x: x["m_proj"])
-
+            # vehicle_infos.sort(key=lambda x: x["rel_dis"])
             # Step 1: take nearest N first
             nearest_N = vehicle_infos[:self.neighbor_count]
 
             # Step 2: now filter out those >= 17
             selected = [info for info in nearest_N if info["m_proj"] < 17]
+            # selected = [info for info in nearest_N if info["rel_dis"] < 25]
             if not selected:
                 return 0
             # Build neighbor dictionary
@@ -490,15 +491,15 @@ class accidentDetection:
         if max_score_row["score"] >=  0.6:
             if (node_features_df["type_encoded"] == 6).any():
                 debuge = 1
-                print("slow Down : ")
-                print(
-                    f"{scenario_dir},"
-                    f"Collision Max score: {max_score_row['score']}, "
-                    f"Src: {max_score_row['src_agent_id']}, "
-                    f"Dst: {max_score_row['dst_agent_id']}, "
-                    f"ts: {max_score_row['ts']}, "
-                    # f"Frame ID range: [{max_score_row['frame_start']}, {max_score_row['frame_end']}]"
-                )
+                # print("slow Down : ")
+                # print(
+                #     f"{scenario_dir},"
+                #     f"Collision Max score: {max_score_row['score']}, "
+                #     f"Src: {max_score_row['src_agent_id']}, "
+                #     f"Dst: {max_score_row['dst_agent_id']}, "
+                #     f"ts: {max_score_row['ts']}, "
+                #     # f"Frame ID range: [{max_score_row['frame_start']}, {max_score_row['frame_end']}]"
+                # )
             accident = 1
 
             if self.predict_dan > 5:

@@ -65,8 +65,10 @@ public class BeliefsHandler extends Thread {
 
 					speed = data_jsn.getJsonObject("info").get("speed").toString();
 
+					String stop_frame = data_jsn.getJsonObject("info").get("sFra").toString();
+                    String stop_distance = data_jsn.getJsonObject("info").get("sDis").toString();
 					this.env.addPercept("carla_control",
-							Literal.parseLiteral("info(" + current_frame + "," + speed + ")"));
+							Literal.parseLiteral("info(" + current_frame + "," + speed + "," + stop_frame + "," + stop_distance + ")"));
 
 				} else {
 					return;
@@ -163,7 +165,7 @@ public class BeliefsHandler extends Thread {
 		Integer frm = this.q_beliefs_frames.floor(frame_to_remove);
 		while (frm != null && frm != 0) {
 
-			this.env.removePerceptsByUnif("carla_control", Literal.parseLiteral("info(" + frm + ",_)"));
+			this.env.removePerceptsByUnif("carla_control", Literal.parseLiteral("info(" + frm + ",_,_,_)"));
 			this.env.removePerceptsByUnif("carla_control", Literal.parseLiteral("ml_control(" + frm + ",_,_,_,_,_)"));
 			this.env.removePerceptsByUnif("carla_control",
 					Literal.parseLiteral("traffic_light(" + frm + ",_,_,_,_,_,_)"));
