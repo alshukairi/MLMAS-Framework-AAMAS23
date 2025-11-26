@@ -160,7 +160,10 @@ class Orchestrator(AutonomousAgent):
         #==============================================
         # frames = (v / a) × FPS
         # distance = v² / (2a)
-        sframes  = (ego_vehicle_speed / 8 ) * 20
+        snapshot = CarlaDataProvider.get_world().get_snapshot()
+        fps = 1.0 / snapshot.timestamp.delta_seconds
+
+        sframes  = (ego_vehicle_speed / 8 ) * fps
         sdistance = (ego_vehicle_speed **2) / 16
         self.main_info = (self.num_frames, round(ego_vehicle_speed,3), int(sframes), round(sdistance,3))
         self.lidar_df = self.preprocess(lidar)
