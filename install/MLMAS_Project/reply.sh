@@ -32,4 +32,4 @@ export RESUME=True
 #python scenario_runner/scenario_runner.py --replay ./results/records/MLMAS_LAV/RouteScenario_11_rep0.log
 #${CARLA_ROOT}/CarlaUE4.sh -carla-port=2000 -recorder-replay=./results/records/MLMAS_LAV/RouteScenario_11_rep0.log
 #python trasform_reply.py
-python aa.py
+python replay_record.py
