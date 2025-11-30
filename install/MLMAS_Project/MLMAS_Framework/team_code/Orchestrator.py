@@ -56,6 +56,7 @@ class Orchestrator(AutonomousAgent):
         self.accidentDetector = None
         self.slow = 0
         self.senaria_name_log = "UnknownScenario"
+        self.alertTimes = 0
     def sensors(self):
 
         ## 1. get the required sinsors by the ML models
@@ -188,20 +189,10 @@ class Orchestrator(AutonomousAgent):
         self.traffic_light_detection = self.check_traffic_lights()
 
         # print(f"dis_l : {self.Left_objects_detection}")
-        # print(f"dis_b: {self.back_objects_detection}")
-        # print(f"dis_sb: {self.sBack_objects_detection}")
-
+        # print(f"dis_b: {self.back_objects_detection}")        
         # print(f"l: {self.Left_objects_detection}, r: {self.right_objects_detection}")
         # print("-------")
-        if accidentMark == 1:
-
-            self.mlAlert = (accidentMark, probability, dangerous)
-            if debuge == 1 :
-                print(f"mlAlert: {probability}, {dangerous}")
-                print(f"f: {self.front_objects_detection},r : {self.right_objects_detection},l : {self.Left_objects_detection}")
-
-        else :
-            self.mlAlert = -1
+        
 
         ## X_offset : 2.5 Y_ofset : 1.1
 
@@ -209,11 +200,23 @@ class Orchestrator(AutonomousAgent):
         if self.traffic_light_detection != -1 and self.traffic_light_detection[0] == "A":
             self.ahead_traffic_light_distance = self.traffic_light_detection[4]
 
-
+        
         self.ml_control = (self.ml_model.run_step(input_data, timestamp) if self.should_get_ml_control()
                             else carla.VehicleControl(steer=float(0.0),
                                                       throttle=float(0.0),
                                                        brake= float(1.0)) )
+
+        if accidentMark == 1: 
+            self.alertTimes = 5
+        if alertTimes > 0:
+
+            self.mlAlert = (accidentMark, probability, dangerous)
+            if debuge == 1 :
+                print(f"mlAlert: {probability}, {dangerous}")
+                print(f"f: {self.front_objects_detection},r : {self.right_objects_detection},l : {self.Left_objects_detection}")
+            self.alertTimes -= 1
+        else :
+            self.mlAlert = -1
 
         jason_cond = self.should_send_to_jason()
         if jason_cond:
@@ -296,7 +299,7 @@ class Orchestrator(AutonomousAgent):
         xr, yr = lidar_xyzr[:, 0], lidar_xyzr[:, 1]
         x_rot = cos_y * xr + sin_y * yr
         y_rot = -sin_y * xr + cos_y * yr
-        # Z 不需要旋转，因为 yaw 不影响高度
+        # Z didn't need . height didn't be effect.
         z_l = z_raw
         x_l = x_rot + self.lidar_dim[0]
         y_l = y_rot + self.lidar_dim[1]
@@ -456,7 +459,7 @@ class Orchestrator(AutonomousAgent):
 
         # SF: straight front 又是前方且 |y|<lane_width
         if direction == "SF":
-            sub = df[(df.x > 0) & (abs(df.y) < 2.12)]
+            sub = df[(df.x > 0) & (abs(df.y) < 1.07)]
             if len(sub) == 0:
                 return -1
             p = sub.loc[sub.x.idxmin()]
@@ -464,7 +467,7 @@ class Orchestrator(AutonomousAgent):
 
         # SB: straight back 又是后方且 |y|<lane_width
         if direction == "SB":
-            sub = df[(df.x < 0) & (abs(df.y) < 2.12)]
+            sub = df[(df.x < 0) & (abs(df.y) < 1.07)]
             if len(sub) == 0:
                 return -1
             p = sub.loc[sub.x.idxmax()]
