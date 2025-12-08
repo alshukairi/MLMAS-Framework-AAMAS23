@@ -57,6 +57,8 @@ class Orchestrator(AutonomousAgent):
         self.slow = 0
         self.senaria_name_log = "UnknownScenario"
         self.alertTimes = 0
+        self.mlAlert = -1 
+
     def sensors(self):
 
         ## 1. get the required sinsors by the ML models
@@ -205,17 +207,18 @@ class Orchestrator(AutonomousAgent):
                             else carla.VehicleControl(steer=float(0.0),
                                                       throttle=float(0.0),
                                                        brake= float(1.0)) )
-
+        
         if accidentMark == 1: 
-            self.alertTimes = 5
-        if alertTimes > 0:
+            self.alertTimes = 6
+        if self.alertTimes > 0:
 
-            self.mlAlert = (accidentMark, probability, dangerous)
+            self.mlAlert = (accidentMark, probability, self.alertTimes)
             if debuge == 1 :
-                print(f"mlAlert: {probability}, {dangerous}")
+                print(f"mlAlert: {probability}, {self.alertTimes}")
                 print(f"f: {self.front_objects_detection},r : {self.right_objects_detection},l : {self.Left_objects_detection}")
             self.alertTimes -= 1
         else :
+            
             self.mlAlert = -1
 
         jason_cond = self.should_send_to_jason()
@@ -223,6 +226,7 @@ class Orchestrator(AutonomousAgent):
             cnt = self.send_sensor_data()
             if cnt != -1:
                 return cnt
+        # self.ml_control = self.ml_model.run_step(input_data, timestamp) 
 
         return  self.ml_control #carla.VehicleControl(steer=control.steer, throttle=float(1.0), brake=control.brake)
 
